@@ -131,6 +131,7 @@ export const ChurchSettings = () => {
                       ...dept, 
                       id: Date.now().toString(), 
                       churchId: '1',
+                      type: dept.type as Department['type'],
                       createdAt: new Date() 
                     }])}
                   />
@@ -220,6 +221,7 @@ export const ChurchSettings = () => {
                       ...course, 
                       id: Date.now().toString(), 
                       churchId: '1',
+                      description: course.description || '',
                       createdAt: new Date() 
                     }])}
                   />

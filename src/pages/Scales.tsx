@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Search, Plus, Clock, Users, Music, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { CreateScaleDialog } from '@/components/CreateScaleDialog';
 
 // Mock data
 const mockScales = [
@@ -146,10 +146,14 @@ export const Scales = () => {
             <p className="text-gray-600">Gerencie as escalas de cultos e eventos</p>
           </div>
           {canCreateScales && (
-            <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
-              <Plus className="h-4 w-4 mr-2" />
-              Nova Escala
-            </Button>
+            <CreateScaleDialog
+              trigger={
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Nova Escala
+                </Button>
+              }
+            />
           )}
         </div>
 

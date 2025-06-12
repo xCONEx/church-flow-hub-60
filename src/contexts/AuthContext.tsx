@@ -1,133 +1,124 @@
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { AuthContextType, User, Church } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+// Mock users for testing
+const mockUsers = [
+  {
+    id: '1',
+    email: 'admin@igreja.com',
+    name: 'Pastor João',
+    role: 'admin' as const,
+    churchId: '1',
+    joinedAt: new Date('2024-01-01'),
+  },
+  {
+    id: '2', 
+    email: 'lider@igreja.com',
+    name: 'Ana Karolina',
+    role: 'leader' as const,
+    churchId: '1',
+    departmentId: '1',
+    joinedAt: new Date('2024-01-15'),
+  },
+  {
+    id: '3',
+    email: 'colaborador@igreja.com', 
+    name: 'Yuri Adriel',
+    role: 'collaborator' as const,
+    churchId: '1',
+    departmentId: '1',
+    joinedAt: new Date('2024-02-01'),
+  },
+  {
+    id: '4',
+    email: 'membro@igreja.com',
+    name: 'Maria Silva',
+    role: 'member' as const,
+    churchId: '1',
+    joinedAt: new Date('2024-02-15'),
   }
-  return context;
+];
+
+const mockChurch = {
+  id: '1',
+  name: 'Igreja Batista Central',
+  address: 'Rua das Flores, 123',
+  phone: '(11) 99999-9999',
+  email: 'contato@igreja.com',
+  adminId: '1',
+  departments: [],
+  createdAt: new Date('2024-01-01'),
 };
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
-
-export const AuthProvider = ({ children }: AuthProviderProps) => {
+export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [church, setChurch] = useState<Church | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     // Simulate checking for existing session
-    const checkAuth = async () => {
-      try {
-        const savedUser = localStorage.getItem('church_manager_user');
-        const savedChurch = localStorage.getItem('church_manager_church');
-        
-        if (savedUser) {
-          setUser(JSON.parse(savedUser));
-        }
-        if (savedChurch) {
-          setChurch(JSON.parse(savedChurch));
-        }
-      } catch (error) {
-        console.error('Error checking auth:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    checkAuth();
+    const savedUser = localStorage.getItem('church-manager-user');
+    if (savedUser) {
+      const userData = JSON.parse(savedUser);
+      setUser(userData);
+      setChurch(mockChurch);
+    }
+    setIsLoading(false);
   }, []);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Mock user data
-      const mockUser: User = {
-        id: '1',
-        email,
-        name: 'Pastor João Silva',
-        role: 'admin',
-        churchId: 'church-1',
-        joinedAt: new Date(),
-        lastActive: new Date(),
-      };
-
-      const mockChurch: Church = {
-        id: 'church-1',
-        name: 'Igreja Batista Central',
-        adminId: '1',
-        departments: [
-          {
-            id: 'dept-1',
-            name: 'Louvor',
-            churchId: 'church-1',
-            leaderId: '1',
-            collaborators: [],
-            type: 'louvor',
-            createdAt: new Date(),
-          },
-          {
-            id: 'dept-2',
-            name: 'Mídia',
-            churchId: 'church-1',
-            collaborators: [],
-            type: 'midia',
-            createdAt: new Date(),
-          }
-        ],
-        createdAt: new Date(),
-      };
-
-      setUser(mockUser);
-      setChurch(mockChurch);
-      
-      localStorage.setItem('church_manager_user', JSON.stringify(mockUser));
-      localStorage.setItem('church_manager_church', JSON.stringify(mockChurch));
-    } catch (error) {
-      throw new Error('Falha no login. Verifique suas credenciais.');
-    } finally {
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const foundUser = mockUsers.find(u => u.email === email);
+    
+    if (!foundUser) {
       setIsLoading(false);
+      throw new Error('Usuário não encontrado');
     }
+
+    if (password !== '123456') {
+      setIsLoading(false);
+      throw new Error('Senha incorreta');
+    }
+
+    setUser(foundUser);
+    setChurch(mockChurch);
+    localStorage.setItem('church-manager-user', JSON.stringify(foundUser));
+    setIsLoading(false);
   };
 
   const register = async (userData: Partial<User>) => {
     setIsLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      const newUser: User = {
-        id: Date.now().toString(),
-        email: userData.email!,
-        name: userData.name!,
-        role: 'member',
-        joinedAt: new Date(),
-        ...userData,
-      };
+    
+    // Simulate API call
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const newUser: User = {
+      id: Date.now().toString(),
+      email: userData.email!,
+      name: userData.name!,
+      phone: userData.phone,
+      role: 'member', // New users start as members
+      churchId: '1',
+      joinedAt: new Date(),
+    };
 
-      setUser(newUser);
-      localStorage.setItem('church_manager_user', JSON.stringify(newUser));
-    } catch (error) {
-      throw new Error('Falha no cadastro. Tente novamente.');
-    } finally {
-      setIsLoading(false);
-    }
+    setUser(newUser);
+    setChurch(mockChurch);
+    localStorage.setItem('church-manager-user', JSON.stringify(newUser));
+    setIsLoading(false);
   };
 
   const logout = () => {
     setUser(null);
     setChurch(null);
-    localStorage.removeItem('church_manager_user');
-    localStorage.removeItem('church_manager_church');
+    localStorage.removeItem('church-manager-user');
   };
 
   const updateUser = async (userData: Partial<User>) => {
@@ -135,22 +126,28 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     
     const updatedUser = { ...user, ...userData };
     setUser(updatedUser);
-    localStorage.setItem('church_manager_user', JSON.stringify(updatedUser));
-  };
-
-  const value: AuthContextType = {
-    user,
-    church,
-    login,
-    register,
-    logout,
-    updateUser,
-    isLoading,
+    localStorage.setItem('church-manager-user', JSON.stringify(updatedUser));
   };
 
   return (
-    <AuthContext.Provider value={value}>
+    <AuthContext.Provider value={{
+      user,
+      church,
+      login,
+      register,
+      logout,
+      updateUser,
+      isLoading,
+    }}>
       {children}
     </AuthContext.Provider>
   );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
 };

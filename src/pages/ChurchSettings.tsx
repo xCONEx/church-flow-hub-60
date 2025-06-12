@@ -3,24 +3,45 @@ import { useState } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Plus, Settings, Calendar, Users, GraduationCap, Trash2, Edit } from 'lucide-react';
+import { Plus, Calendar, Users, GraduationCap, Trash2, Edit } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddDepartmentDialog } from '@/components/AddDepartmentDialog';
 import { AddServiceTypeDialog } from '@/components/AddServiceTypeDialog';
 import { AddCourseDialog } from '@/components/AddCourseDialog';
+import { Department, Course } from '@/types';
 
 export const ChurchSettings = () => {
   const { user, church } = useAuth();
   
   // Mock data for departments, service types, and courses
-  const [departments, setDepartments] = useState([
-    { id: '1', name: 'Louvor', type: 'louvor', leaderId: '2', collaborators: ['2', '3'], createdAt: new Date() },
-    { id: '2', name: 'Mídia', type: 'midia', leaderId: null, collaborators: ['6', '7'], createdAt: new Date() },
-    { id: '3', name: 'Ministração', type: 'ministracao', leaderId: '8', collaborators: [], createdAt: new Date() },
+  const [departments, setDepartments] = useState<Department[]>([
+    { 
+      id: '1', 
+      name: 'Louvor', 
+      type: 'louvor', 
+      churchId: '1',
+      leaderId: '2', 
+      collaborators: ['2', '3'], 
+      createdAt: new Date() 
+    },
+    { 
+      id: '2', 
+      name: 'Mídia', 
+      type: 'midia', 
+      churchId: '1',
+      collaborators: ['6', '7'], 
+      createdAt: new Date() 
+    },
+    { 
+      id: '3', 
+      name: 'Ministração', 
+      type: 'ministracao', 
+      churchId: '1',
+      leaderId: '8', 
+      collaborators: [], 
+      createdAt: new Date() 
+    },
   ]);
 
   const [serviceTypes, setServiceTypes] = useState([
@@ -32,10 +53,28 @@ export const ChurchSettings = () => {
     'Evento Especial'
   ]);
 
-  const [courses, setCourses] = useState([
-    { id: '1', name: 'Curso de Vocal', description: 'Técnicas básicas de canto', createdAt: new Date() },
-    { id: '2', name: 'Treinamento de Mídia', description: 'Operação de equipamentos audiovisuais', createdAt: new Date() },
-    { id: '3', name: 'Liderança Ministerial', description: 'Formação de líderes', createdAt: new Date() },
+  const [courses, setCourses] = useState<Course[]>([
+    { 
+      id: '1', 
+      name: 'Curso de Vocal', 
+      description: 'Técnicas básicas de canto', 
+      churchId: '1',
+      createdAt: new Date() 
+    },
+    { 
+      id: '2', 
+      name: 'Treinamento de Mídia', 
+      description: 'Operação de equipamentos audiovisuais', 
+      churchId: '1',
+      createdAt: new Date() 
+    },
+    { 
+      id: '3', 
+      name: 'Liderança Ministerial', 
+      description: 'Formação de líderes', 
+      churchId: '1',
+      createdAt: new Date() 
+    },
   ]);
 
   if (user?.role !== 'admin') {
@@ -88,7 +127,12 @@ export const ChurchSettings = () => {
                         Novo Departamento
                       </Button>
                     }
-                    onAdd={(dept) => setDepartments([...departments, { ...dept, id: Date.now().toString(), createdAt: new Date() }])}
+                    onAdd={(dept) => setDepartments([...departments, { 
+                      ...dept, 
+                      id: Date.now().toString(), 
+                      churchId: '1',
+                      createdAt: new Date() 
+                    }])}
                   />
                 </div>
               </CardHeader>
@@ -172,7 +216,12 @@ export const ChurchSettings = () => {
                         Novo Curso
                       </Button>
                     }
-                    onAdd={(course) => setCourses([...courses, { ...course, id: Date.now().toString(), createdAt: new Date() }])}
+                    onAdd={(course) => setCourses([...courses, { 
+                      ...course, 
+                      id: Date.now().toString(), 
+                      churchId: '1',
+                      createdAt: new Date() 
+                    }])}
                   />
                 </div>
               </CardHeader>

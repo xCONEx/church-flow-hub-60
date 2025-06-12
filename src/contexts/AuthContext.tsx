@@ -42,7 +42,7 @@ const mockUsers = [
   }
 ];
 
-const mockChurch = {
+const mockChurch: Church = {
   id: '1',
   name: 'Igreja Batista Central',
   address: 'Rua das Flores, 123',
@@ -50,6 +50,15 @@ const mockChurch = {
   email: 'contato@igreja.com',
   adminId: '1',
   departments: [],
+  serviceTypes: [
+    'Culto Domingo Manhã',
+    'Culto Domingo Noite', 
+    'Reunião de Oração',
+    'Culto de Jovens',
+    'Ensaio Geral',
+    'Evento Especial'
+  ],
+  courses: [],
   createdAt: new Date('2024-01-01'),
 };
 

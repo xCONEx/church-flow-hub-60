@@ -10,10 +10,19 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, Users, Music, FileText, Clock, Search, X } from 'lucide-react';
+import { Plus, Calendar, Users, Music, FileText, Clock, Search, X, UserPlus } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Mock data
+const mockServiceTypes = [
+  'Culto Domingo Manhã',
+  'Culto Domingo Noite', 
+  'Reunião de Oração',
+  'Culto de Jovens',
+  'Ensaio Geral',
+  'Evento Especial'
+];
+
 const mockDepartments = [
   'Louvor',
   'Mídia', 
@@ -35,12 +44,14 @@ const mockMembers = [
 ];
 
 const mockSongs = [
-  { id: '1', title: 'Eu Creio em Ti', artist: 'Hillsong', originalKey: 'G', category: 'Adoração' },
-  { id: '2', title: 'Pra Te Adorar Eu Vivo', artist: 'Diante do Trono', originalKey: 'C', category: 'Adoração' },
-  { id: '3', title: 'Eu Vou Construir', artist: 'Toque no Altar', originalKey: 'F', category: 'Celebração' },
-  { id: '4', title: 'Rei do Meu Coração', artist: 'Ministério Zoe', originalKey: 'A', category: 'Adoração' },
-  { id: '5', title: 'Cornerstone', artist: 'Hillsong', originalKey: 'D', category: 'Adoração' }
+  { id: '1', title: 'Eu Creio em Ti', artist: 'Hillsong', originalKey: 'G', bpm: 120, category: 'Adoração' },
+  { id: '2', title: 'Pra Te Adorar Eu Vivo', artist: 'Diante do Trono', originalKey: 'C', bpm: 85, category: 'Adoração' },
+  { id: '3', title: 'Eu Vou Construir', artist: 'Toque no Altar', originalKey: 'F', bpm: 130, category: 'Celebração' },
+  { id: '4', title: 'Rei do Meu Coração', artist: 'Ministério Zoe', originalKey: 'A', bpm: 95, category: 'Adoração' },
+  { id: '5', title: 'Cornerstone', artist: 'Hillsong', originalKey: 'D', bpm: 105, category: 'Adoração' }
 ];
+
+const musicalKeys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 const agendaBlocks = [
   'Oração',
@@ -62,6 +73,7 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
     title: '',
     date: '',
     time: '',
+    serviceType: '',
     department: '',
     saveAsTemplate: false,
     notes: ''
@@ -72,6 +84,7 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
   const [agenda, setAgenda] = useState<any[]>([]);
   const [searchMember, setSearchMember] = useState('');
   const [searchSong, setSearchSong] = useState('');
+  const [showAddPersonDialog, setShowAddPersonDialog] = useState('');
 
   const canCreateScales = user?.role === 'admin' || user?.role === 'leader';
 
@@ -92,6 +105,7 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
       title: '',
       date: '',
       time: '',
+      serviceType: '',
       department: '',
       saveAsTemplate: false,
       notes: ''
@@ -121,6 +135,12 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
 
   const removeSongFromScale = (songId: string) => {
     setSelectedSongs(prev => prev.filter(s => s.id !== songId));
+  };
+
+  const updateSongKey = (songId: string, newKey: string) => {
+    setSelectedSongs(prev => prev.map(song => 
+      song.id === songId ? { ...song, scaleKey: newKey } : song
+    ));
   };
 
   const addAgendaItem = () => {
@@ -217,6 +237,20 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
                 </div>
 
                 <div>
+                  <Label htmlFor="serviceType">Tipo de Culto</Label>
+                  <Select value={formData.serviceType} onValueChange={(value) => setFormData(prev => ({ ...prev, serviceType: value }))}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o tipo de culto" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {mockServiceTypes.map(type => (
+                        <SelectItem key={type} value={type}>{type}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div>
                   <Label htmlFor="department">Departamento Principal</Label>
                   <Select value={formData.department} onValueChange={(value) => setFormData(prev => ({ ...prev, department: value }))}>
                     <SelectTrigger>
@@ -304,15 +338,20 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
                         </div>
                         <div>
                           <Label>Tom</Label>
-                          <Input
-                            value={item.key}
-                            onChange={(e) => {
-                              const newAgenda = [...agenda];
-                              newAgenda[index].key = e.target.value;
-                              setAgenda(newAgenda);
-                            }}
-                            placeholder="Ex: A"
-                          />
+                          <Select value={item.key} onValueChange={(value) => {
+                            const newAgenda = [...agenda];
+                            newAgenda[index].key = value;
+                            setAgenda(newAgenda);
+                          }}>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Tom" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {musicalKeys.map(key => (
+                                <SelectItem key={key} value={key}>{key}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
                         </div>
                       </div>
                       <div>
@@ -352,14 +391,24 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
                 </div>
 
                 {mockDepartments.map(department => (
-                  <div key={department} className="space-y-2">
-                    <h4 className="font-semibold text-lg">{department}</h4>
+                  <div key={department} className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <h4 className="font-semibold text-lg">{department}</h4>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setShowAddPersonDialog(department)}
+                      >
+                        <UserPlus className="h-4 w-4 mr-1" />
+                        Adicionar Pessoa
+                      </Button>
+                    </div>
                     
                     {/* Membros selecionados */}
                     <div className="space-y-2">
                       {(selectedMembers[department] || []).map(member => (
-                        <div key={member.id} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                          <div className="flex items-center space-x-2">
+                        <div key={member.id} className="flex items-center justify-between bg-gray-50 p-3 rounded">
+                          <div className="flex items-center space-x-3">
                             <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
                               <span className="text-white text-sm font-medium">
                                 {member.name.charAt(0)}
@@ -381,32 +430,49 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
                       ))}
                     </div>
 
-                    {/* Adicionar membros */}
-                    <div className="grid grid-cols-2 gap-2">
-                      {filteredMembers
-                        .filter(member => member.department === department)
-                        .filter(member => !(selectedMembers[department] || []).some(sm => sm.id === member.id))
-                        .map(member => (
-                          <Button
-                            key={member.id}
-                            variant="outline"
-                            className="justify-start h-auto p-2"
-                            onClick={() => addMemberToDepartment(member, department)}
+                    {/* Dialog para adicionar pessoas */}
+                    {showAddPersonDialog === department && (
+                      <div className="border rounded-lg p-4 bg-blue-50">
+                        <div className="flex items-center justify-between mb-3">
+                          <h5 className="font-medium">Adicionar pessoa ao {department}</h5>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            onClick={() => setShowAddPersonDialog('')}
                           >
-                            <div className="flex items-center space-x-2">
-                              <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
-                                <span className="text-white text-xs font-medium">
-                                  {member.name.charAt(0)}
-                                </span>
-                              </div>
-                              <div className="text-left">
-                                <p className="text-sm font-medium">{member.name}</p>
-                                <p className="text-xs text-gray-600">{member.role}</p>
-                              </div>
-                            </div>
+                            <X className="h-4 w-4" />
                           </Button>
-                        ))}
-                    </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {filteredMembers
+                            .filter(member => member.department === department)
+                            .filter(member => !(selectedMembers[department] || []).some(sm => sm.id === member.id))
+                            .map(member => (
+                              <Button
+                                key={member.id}
+                                variant="outline"
+                                className="justify-start h-auto p-2"
+                                onClick={() => {
+                                  addMemberToDepartment(member, department);
+                                  setShowAddPersonDialog('');
+                                }}
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full flex items-center justify-center">
+                                    <span className="text-white text-xs font-medium">
+                                      {member.name.charAt(0)}
+                                    </span>
+                                  </div>
+                                  <div className="text-left">
+                                    <p className="text-sm font-medium">{member.name}</p>
+                                    <p className="text-xs text-gray-600">{member.role}</p>
+                                  </div>
+                                </div>
+                              </Button>
+                            ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </CardContent>
@@ -438,9 +504,23 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
                   ) : (
                     selectedSongs.map((song, index) => (
                       <div key={song.id} className="flex items-center justify-between bg-gray-50 p-3 rounded">
-                        <div>
+                        <div className="flex-1">
                           <p className="font-medium">{song.title}</p>
-                          <p className="text-sm text-gray-600">{song.artist} - Tom: {song.scaleKey}</p>
+                          <p className="text-sm text-gray-600">{song.artist} - BPM: {song.bpm}</p>
+                          <div className="flex items-center space-x-2 mt-1">
+                            <span className="text-sm text-gray-500">Tom:</span>
+                            <Select value={song.scaleKey} onValueChange={(value) => updateSongKey(song.id, value)}>
+                              <SelectTrigger className="w-20 h-8">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {musicalKeys.map(key => (
+                                  <SelectItem key={key} value={key}>{key}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <span className="text-xs text-gray-400">(Original: {song.originalKey})</span>
+                          </div>
                         </div>
                         <Button
                           variant="ghost"
@@ -469,7 +549,7 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
                         >
                           <div className="text-left">
                             <p className="font-medium">{song.title}</p>
-                            <p className="text-sm text-gray-600">{song.artist} - Tom Original: {song.originalKey}</p>
+                            <p className="text-sm text-gray-600">{song.artist} - Tom Original: {song.originalKey} - BPM: {song.bpm}</p>
                             <Badge variant="secondary" className="text-xs mt-1">{song.category}</Badge>
                           </div>
                         </Button>

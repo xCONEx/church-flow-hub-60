@@ -22,6 +22,8 @@ export interface Church {
   email?: string;
   adminId: string;
   departments: Department[];
+  serviceTypes: string[]; // Types of services/cultos
+  courses: Course[];
   createdAt: Date;
 }
 
@@ -31,7 +33,15 @@ export interface Department {
   churchId: string;
   leaderId?: string;
   collaborators: string[];
-  type: 'louvor' | 'louvor-juniores' | 'louvor-teens' | 'midia' | 'midia-juniores' | 'sonoplastia' | 'instrumentos' | 'custom';
+  type: 'louvor' | 'louvor-juniores' | 'louvor-teens' | 'midia' | 'midia-juniores' | 'sonoplastia' | 'instrumentos' | 'recepcao' | 'ministracao' | 'palavra' | 'oracao' | 'custom';
+  createdAt: Date;
+}
+
+export interface Course {
+  id: string;
+  name: string;
+  description?: string;
+  churchId: string;
   createdAt: Date;
 }
 
@@ -39,6 +49,7 @@ export interface Scale {
   id: string;
   title: string;
   date: Date;
+  serviceType: string; // Changed from departmentId
   churchId: string;
   departmentId: string;
   createdBy: string;
@@ -48,10 +59,32 @@ export interface Scale {
     confirmed: boolean;
     invitedAt: Date;
   }[];
-  songs?: string[];
+  songs?: ScaleSong[];
+  agenda?: AgendaItem[];
   notes?: string;
   status: 'draft' | 'published' | 'completed';
   createdAt: Date;
+}
+
+export interface ScaleSong {
+  songId: string;
+  title: string;
+  artist: string;
+  originalKey: string;
+  scaleKey: string; // Key for this scale
+  order: number;
+  notes?: string;
+  links?: string[];
+}
+
+export interface AgendaItem {
+  id: string;
+  time: string;
+  block: string;
+  description: string;
+  key?: string;
+  notes?: string;
+  order: number;
 }
 
 export interface Song {
@@ -60,14 +93,29 @@ export interface Song {
   artist: string;
   key: string;
   tempo?: string;
+  bpm?: number;
   genre?: string;
   youtubeUrl?: string;
+  spotifyUrl?: string;
   cifraUrl?: string;
   lyrics?: string;
   churchId: string;
   addedBy: string;
   tags: string[];
   createdAt: Date;
+}
+
+export interface Invite {
+  id: string;
+  email: string;
+  name: string;
+  role: 'leader' | 'collaborator';
+  departmentId: string;
+  churchId: string;
+  invitedBy: string;
+  status: 'pending' | 'accepted' | 'expired';
+  createdAt: Date;
+  expiresAt: Date;
 }
 
 export interface AuthContextType {

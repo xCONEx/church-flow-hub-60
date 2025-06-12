@@ -13,6 +13,8 @@ import { Members } from "@/pages/Members";
 import { Repertoire } from "@/pages/Repertoire";
 import { Invites } from "@/pages/Invites";
 import { Scales } from "@/pages/Scales";
+import { ChurchSettings } from "@/pages/ChurchSettings";
+import { Profile } from "@/pages/Profile";
 import { Unauthorized } from "@/pages/Unauthorized";
 import NotFound from "./pages/NotFound";
 
@@ -43,7 +45,7 @@ const App = () => (
             <Route 
               path="/scales" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator']}>
+                <ProtectedRoute>
                   <Scales />
                 </ProtectedRoute>
               } 
@@ -61,7 +63,7 @@ const App = () => (
             <Route 
               path="/repertoire" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'leader']}>
+                <ProtectedRoute>
                   <Repertoire />
                 </ProtectedRoute>
               } 
@@ -72,6 +74,24 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRoles={['admin', 'leader']}>
                   <Invites />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/church-settings" 
+              element={
+                <ProtectedRoute allowedRoles={['admin']}>
+                  <ChurchSettings />
+                </ProtectedRoute>
+              } 
+            />
+
+            <Route 
+              path="/profile" 
+              element={
+                <ProtectedRoute>
+                  <Profile />
                 </ProtectedRoute>
               } 
             />

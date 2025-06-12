@@ -10,7 +10,9 @@ import {
   Settings,
   ChevronLeft,
   ChevronRight,
-  LogOut
+  LogOut,
+  User,
+  Building
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -18,10 +20,12 @@ import { Button } from '@/components/ui/button';
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'leader', 'collaborator', 'member'] },
-  { name: 'Escalas', href: '/scales', icon: Calendar, roles: ['admin', 'leader', 'collaborator'] },
+  { name: 'Escalas', href: '/scales', icon: Calendar, roles: ['admin', 'leader', 'collaborator', 'member'] },
   { name: 'Membros', href: '/members', icon: Users, roles: ['admin', 'leader'] },
-  { name: 'Repertório', href: '/repertoire', icon: Music, roles: ['admin', 'leader'] },
+  { name: 'Repertório', href: '/repertoire', icon: Music, roles: ['admin', 'leader', 'collaborator', 'member'] },
   { name: 'Convites', href: '/invites', icon: Mail, roles: ['admin', 'leader'] },
+  { name: 'Config. Igreja', href: '/church-settings', icon: Building, roles: ['admin'] },
+  { name: 'Perfil', href: '/profile', icon: User, roles: ['admin', 'leader', 'collaborator', 'member'] },
   { name: 'Configurações', href: '/settings', icon: Settings, roles: ['admin', 'leader', 'collaborator', 'member'] },
 ];
 

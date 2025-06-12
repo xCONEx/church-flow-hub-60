@@ -9,6 +9,10 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Login } from "@/pages/Login";
 import { Register } from "@/pages/Register";
 import { Dashboard } from "@/pages/Dashboard";
+import { Members } from "@/pages/Members";
+import { Repertoire } from "@/pages/Repertoire";
+import { Invites } from "@/pages/Invites";
+import { Scales } from "@/pages/Scales";
 import { Unauthorized } from "@/pages/Unauthorized";
 import NotFound from "./pages/NotFound";
 
@@ -36,39 +40,42 @@ const App = () => (
               } 
             />
             
-            {/* Placeholder routes for future pages */}
             <Route 
               path="/scales" 
               element={
-                <ProtectedRoute allowedRoles={['admin', 'leader']}>
-                  <Dashboard />
+                <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator']}>
+                  <Scales />
                 </ProtectedRoute>
               } 
             />
+            
             <Route 
               path="/members" 
               element={
                 <ProtectedRoute allowedRoles={['admin', 'leader']}>
-                  <Dashboard />
+                  <Members />
                 </ProtectedRoute>
               } 
             />
+            
             <Route 
               path="/repertoire" 
               element={
-                <ProtectedRoute>
-                  <Dashboard />
+                <ProtectedRoute allowedRoles={['admin', 'leader']}>
+                  <Repertoire />
                 </ProtectedRoute>
               } 
             />
+            
             <Route 
               path="/invites" 
               element={
                 <ProtectedRoute allowedRoles={['admin', 'leader']}>
-                  <Dashboard />
+                  <Invites />
                 </ProtectedRoute>
               } 
             />
+            
             <Route 
               path="/events" 
               element={

@@ -7,11 +7,6 @@ import {
   Users, 
   Music, 
   Mail, 
-  CalendarDays,
-  MessageSquare,
-  BookOpen,
-  Bell,
-  BarChart3,
   Settings,
   ChevronLeft,
   ChevronRight,
@@ -22,17 +17,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 
 const navigation = [
-  { name: 'Dashboard', href: '/dashboard', icon: Home },
-  { name: 'Escalas', href: '/scales', icon: Calendar },
-  { name: 'Membros', href: '/members', icon: Users },
-  { name: 'Repertório', href: '/repertoire', icon: Music },
-  { name: 'Convites', href: '/invites', icon: Mail },
-  { name: 'Eventos', href: '/events', icon: CalendarDays },
-  { name: 'Comunicação', href: '/communication', icon: MessageSquare },
-  { name: 'Treinamento', href: '/training', icon: BookOpen },
-  { name: 'Notificações', href: '/notifications', icon: Bell },
-  { name: 'Relatórios', href: '/reports', icon: BarChart3 },
-  { name: 'Configurações', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'leader', 'collaborator', 'member'] },
+  { name: 'Escalas', href: '/scales', icon: Calendar, roles: ['admin', 'leader', 'collaborator'] },
+  { name: 'Membros', href: '/members', icon: Users, roles: ['admin', 'leader'] },
+  { name: 'Repertório', href: '/repertoire', icon: Music, roles: ['admin', 'leader'] },
+  { name: 'Convites', href: '/invites', icon: Mail, roles: ['admin', 'leader'] },
+  { name: 'Configurações', href: '/settings', icon: Settings, roles: ['admin', 'leader', 'collaborator', 'member'] },
 ];
 
 export const Sidebar = () => {
@@ -43,6 +33,10 @@ export const Sidebar = () => {
   const handleLogout = () => {
     logout();
   };
+
+  const filteredNavigation = navigation.filter(item => 
+    user && item.roles.includes(user.role)
+  );
 
   return (
     <div className={cn(
@@ -75,7 +69,7 @@ export const Sidebar = () => {
 
       {/* Navigation */}
       <nav className="flex-1 p-4 space-y-2">
-        {navigation.map((item) => {
+        {filteredNavigation.map((item) => {
           const isActive = location.pathname === item.href;
           return (
             <Link

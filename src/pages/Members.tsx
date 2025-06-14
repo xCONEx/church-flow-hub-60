@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UserPlus, Search, Phone, Mail, Edit, History } from 'lucide-react';
+import { UserPlus, Search, Phone, Mail, Edit, History, UserX } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddMemberDialog } from '@/components/AddMemberDialog';
 import { EditMemberDialog } from '@/components/EditMemberDialog';
@@ -146,6 +145,14 @@ export const Members = () => {
     toast({
       title: "Membro Atualizado",
       description: `Os dados de ${updatedMember.name} foram atualizados.`,
+    });
+  };
+
+  const handleRemoveMember = (memberId: string, memberName: string) => {
+    setMembers(prev => prev.filter(member => member.id !== memberId));
+    toast({
+      title: "Membro Removido",
+      description: `${memberName} foi removido com sucesso.`,
     });
   };
 
@@ -314,26 +321,37 @@ export const Members = () => {
                 </div>
 
                 {canEditMembers && (
-                  <div className="flex space-x-2 pt-2">
-                    <EditMemberDialog
-                      trigger={
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <Edit className="h-4 w-4 mr-1" />
-                          Editar
-                        </Button>
-                      }
-                      member={member}
-                      onEdit={handleEditMember}
-                    />
-                    <MemberHistoryDialog
-                      trigger={
-                        <Button variant="outline" size="sm" className="flex-1">
-                          <History className="h-4 w-4 mr-1" />
-                          Histórico
-                        </Button>
-                      }
-                      member={member}
-                    />
+                  <div className="flex flex-col space-y-2 pt-2 border-t">
+                    <div className="flex space-x-2">
+                      <EditMemberDialog
+                        trigger={
+                          <Button variant="outline" size="sm" className="flex-1">
+                            <Edit className="h-4 w-4 mr-1" />
+                            Editar
+                          </Button>
+                        }
+                        member={member}
+                        onEdit={handleEditMember}
+                      />
+                      <MemberHistoryDialog
+                        trigger={
+                          <Button variant="outline" size="sm" className="flex-1">
+                            <History className="h-4 w-4 mr-1" />
+                            Histórico
+                          </Button>
+                        }
+                        member={member}
+                      />
+                    </div>
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={() => handleRemoveMember(member.id, member.name)}
+                      className="w-full"
+                    >
+                      <UserX className="h-4 w-4 mr-1" />
+                      Remover Membro
+                    </Button>
                   </div>
                 )}
               </CardContent>

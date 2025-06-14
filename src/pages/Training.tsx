@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { BookOpen, Clock, Users, Search, Filter, Star, Play, Plus, Edit } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
 import { AddCourseDialog } from '@/components/AddCourseDialog';
 import { CourseDetailsModal } from '@/components/CourseDetailsModal';
 import { EditCourseDialog } from '@/components/EditCourseDialog';
@@ -15,6 +16,7 @@ import { Course, Department, UserCourseProgress } from '@/types';
 
 export const Training = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
@@ -42,10 +44,8 @@ export const Training = () => {
     },
   ]);
 
-  // Mock user enrollments
   const [enrollments, setEnrollments] = useState<UserCourseProgress[]>([]);
 
-  // Mock courses with modules and lessons
   const [courses, setCourses] = useState<Course[]>([
     {
       id: '1',
@@ -158,15 +158,9 @@ export const Training = () => {
     if (!user) return [];
     
     return courses.filter(course => {
-      // Se o curso não tem departamento específico, está disponível para todos
       if (!course.departmentId) return true;
-      
-      // Se o usuário é admin, pode ver todos os cursos
       if (user.role === 'admin') return true;
-      
-      // Se o usuário tem departamento, pode ver cursos do seu departamento
       if (user.departmentId && course.departmentId === user.departmentId) return true;
-      
       return false;
     });
   };
@@ -230,6 +224,14 @@ export const Training = () => {
     
     setEnrollments([...enrollments, newEnrollment]);
     setShowCourseDetails(false);
+  };
+
+  const handleAccessCourse = (course: Course) => {
+    // Show "Em breve" message for now
+    toast({
+      title: "Atualização em Breve!",
+      description: "O acesso ao conteúdo dos cursos estará disponível em breve.",
+    });
   };
 
   const isUserEnrolled = (courseId: string) => {
@@ -421,7 +423,7 @@ export const Training = () => {
                   const progress = getUserProgress(course.id);
 
                   return (
-                    <Card key={course.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleCourseClick(course)}>
+                    <Card key={course.id} className="hover:shadow-lg transition-shadow">
                       <CardHeader className="pb-3">
                         <div className="flex justify-between items-start mb-2">
                           <CardTitle className="text-lg line-clamp-2">{course.name}</CardTitle>
@@ -462,9 +464,13 @@ export const Training = () => {
                           </div>
                         </div>
 
-                        <Button className="w-full" size="sm">
+                        <Button 
+                          className="w-full" 
+                          size="sm"
+                          onClick={() => handleAccessCourse(course)}
+                        >
                           <Play className="h-4 w-4 mr-2" />
-                          Continuar
+                          Acessar
                         </Button>
                       </CardContent>
                     </Card>

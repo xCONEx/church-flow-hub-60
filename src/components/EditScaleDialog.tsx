@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { Calendar, Users, Music, Plus, X, Settings, GripVertical } from 'lucide-
 import { useAuth } from '@/contexts/AuthContext';
 import { SongDetailsModal } from './SongDetailsModal';
 import { AddSongLinksDialog } from './AddSongLinksDialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface EditScaleDialogProps {
   trigger: React.ReactNode;
@@ -20,6 +20,8 @@ interface EditScaleDialogProps {
 
 export const EditScaleDialog = ({ trigger, scale, onSave }: EditScaleDialogProps) => {
   const { church } = useAuth();
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: scale.title,
     date: scale.date.toISOString().split('T')[0],
@@ -95,6 +97,26 @@ export const EditScaleDialog = ({ trigger, scale, onSave }: EditScaleDialogProps
     };
     
     onSave?.(updatedScale);
+    setOpen(false);
+    
+    toast({
+      title: "Escala atualizada",
+      description: "As alterações foram salvas com sucesso.",
+    });
+  };
+
+  const handleCancel = () => {
+    // Reset form to original values
+    setFormData({
+      title: scale.title,
+      date: scale.date.toISOString().split('T')[0],
+      time: scale.time,
+      department: scale.department,
+      status: scale.status
+    });
+    setSelectedSongs(scale.songs || []);
+    setTeamMembers(scale.members || []);
+    setOpen(false);
   };
 
   const addSong = (songTitle: string) => {
@@ -175,7 +197,7 @@ export const EditScaleDialog = ({ trigger, scale, onSave }: EditScaleDialogProps
   }));
 
   return (
-    <Dialog>
+    <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
@@ -516,7 +538,7 @@ export const EditScaleDialog = ({ trigger, scale, onSave }: EditScaleDialogProps
 
           {/* Botões de Ação */}
           <div className="flex justify-end space-x-2">
-            <Button variant="outline">
+            <Button variant="outline" onClick={handleCancel}>
               Cancelar
             </Button>
             <Button onClick={handleSave}>

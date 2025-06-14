@@ -28,12 +28,27 @@ export const ProtectedRoute = ({
     return <Navigate to="/login" replace />;
   }
 
+  // Master tem acesso a tudo, exceto rotas específicas que não são para ele
+  if (user.role === 'master') {
+    // Master só pode acessar master-dashboard, profile, settings e logout
+    const masterOnlyRoutes = ['/master-dashboard', '/profile', '/settings'];
+    const currentPath = window.location.pathname;
+    
+    // Se está tentando acessar uma rota que não é específica do master
+    if (!masterOnlyRoutes.includes(currentPath) && currentPath !== '/') {
+      return <Navigate to="/master-dashboard" replace />;
+    }
+    
+    return <>{children}</>;
+  }
+
+  // Para outros usuários, verificar se o role está permitido
   if (!allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // Master não precisa de igreja
-  if (requireChurch && user.role !== 'master' && !church) {
+  // Verificar se precisa de igreja (não se aplica ao master)
+  if (requireChurch && !church) {
     return <Navigate to="/setup-church" replace />;
   }
 

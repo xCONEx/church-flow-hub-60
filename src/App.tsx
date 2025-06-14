@@ -15,6 +15,7 @@ import { Invites } from "@/pages/Invites";
 import { Scales } from "@/pages/Scales";
 import { ChurchSettings } from "@/pages/ChurchSettings";
 import { Profile } from "@/pages/Profile";
+import { Settings } from "@/pages/Settings";
 import { Unauthorized } from "@/pages/Unauthorized";
 import NotFound from "./pages/NotFound";
 
@@ -97,6 +98,15 @@ const App = () => (
             />
             
             <Route 
+              path="/settings" 
+              element={
+                <ProtectedRoute>
+                  <Settings />
+                </ProtectedRoute>
+              } 
+            />
+            
+            <Route 
               path="/events" 
               element={
                 <ProtectedRoute>
@@ -132,14 +142,6 @@ const App = () => (
               path="/reports" 
               element={
                 <ProtectedRoute allowedRoles={['admin', 'leader']}>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/settings" 
-              element={
-                <ProtectedRoute>
                   <Dashboard />
                 </ProtectedRoute>
               } 

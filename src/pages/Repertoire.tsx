@@ -8,9 +8,12 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Music, Search, Plus, ExternalLink, FileText } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AddSongDialog } from '@/components/AddSongDialog';
+import { EditSongDialog } from '@/components/EditSongDialog';
+import { AddSongLinksDialog } from '@/components/AddSongLinksDialog';
 
 // Mock data
-const mockSongs = [
+const initialMockSongs = [
   {
     id: '1',
     title: 'Eu Creio em Ti',
@@ -20,6 +23,7 @@ const mockSongs = [
     youtubeUrl: 'https://youtube.com/watch?v=example1',
     cifraUrl: 'https://cifraclub.com.br/example1',
     hasLyrics: true,
+    lyrics: '',
     tags: ['adoração', 'fé', 'confiança'],
     addedBy: 'Pastor João',
     createdAt: new Date('2024-01-15'),
@@ -33,6 +37,7 @@ const mockSongs = [
     youtubeUrl: 'https://youtube.com/watch?v=example2',
     cifraUrl: 'https://cifraclub.com.br/example2',
     hasLyrics: true,
+    lyrics: '',
     tags: ['adoração', 'entrega', 'devoção'],
     addedBy: 'Ana Karolina',
     createdAt: new Date('2024-01-10'),
@@ -46,6 +51,7 @@ const mockSongs = [
     youtubeUrl: 'https://youtube.com/watch?v=example3',
     cifraUrl: 'https://cifraclub.com.br/example3',
     hasLyrics: true,
+    lyrics: '',
     tags: ['celebração', 'alegria', 'construção'],
     addedBy: 'Yuri Adriel',
     createdAt: new Date('2024-01-08'),
@@ -59,6 +65,7 @@ const mockSongs = [
     youtubeUrl: 'https://youtube.com/watch?v=example4',
     cifraUrl: 'https://cifraclub.com.br/example4',
     hasLyrics: false,
+    lyrics: '',
     tags: ['amor', 'graça', 'adoração'],
     addedBy: 'Pastor João',
     createdAt: new Date('2024-01-05'),
@@ -72,6 +79,7 @@ const mockSongs = [
     youtubeUrl: 'https://youtube.com/watch?v=example5',
     cifraUrl: 'https://cifraclub.com.br/example5',
     hasLyrics: true,
+    lyrics: '',
     tags: ['fundamento', 'jesus', 'rocha'],
     addedBy: 'Ana Karolina',
     createdAt: new Date('2024-01-03'),
@@ -82,10 +90,11 @@ const categories = ['Todas', 'Adoração', 'Celebração', 'Ministração', 'Com
 
 export const Repertoire = () => {
   const { user } = useAuth();
+  const [songs, setSongs] = useState(initialMockSongs);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todas');
 
-  const filteredSongs = mockSongs.filter(song => {
+  const filteredSongs = songs.filter(song => {
     const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          song.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          song.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
@@ -95,6 +104,20 @@ export const Repertoire = () => {
   });
 
   const canEditRepertoire = user?.role === 'admin' || user?.role === 'leader';
+
+  const handleSongAdded = (newSong: any) => {
+    setSongs(prev => [newSong, ...prev]);
+  };
+
+  const handleSongUpdated = (songId: string, updatedSong: any) => {
+    setSongs(prev => prev.map(song => song.id === songId ? updatedSong : song));
+  };
+
+  const handleSongLinksUpdated = (songId: string, updates: any) => {
+    setSongs(prev => prev.map(song => 
+      song.id === songId ? { ...song, ...updates } : song
+    ));
+  };
 
   return (
     <DashboardLayout title="Repertório">
@@ -106,10 +129,15 @@ export const Repertoire = () => {
             <p className="text-gray-600">Gerencie as músicas disponíveis para as escalas</p>
           </div>
           {canEditRepertoire && (
-            <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
-              <Plus className="h-4 w-4 mr-2" />
-              Adicionar Música
-            </Button>
+            <AddSongDialog
+              trigger={
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Música
+                </Button>
+              }
+              onSongAdded={handleSongAdded}
+            />
           )}
         </div>
 
@@ -144,14 +172,14 @@ export const Repertoire = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-blue-600">{mockSongs.length}</div>
+              <div className="text-2xl font-bold text-blue-600">{songs.length}</div>
               <p className="text-sm text-gray-600">Total de Músicas</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-green-600">
-                {mockSongs.filter(s => s.category === 'Adoração').length}
+                {songs.filter(s => s.category === 'Adoração').length}
               </div>
               <p className="text-sm text-gray-600">Adoração</p>
             </CardContent>
@@ -159,7 +187,7 @@ export const Repertoire = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-purple-600">
-                {mockSongs.filter(s => s.category === 'Celebração').length}
+                {songs.filter(s => s.category === 'Celebração').length}
               </div>
               <p className="text-sm text-gray-600">Celebração</p>
             </CardContent>
@@ -167,7 +195,7 @@ export const Repertoire = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-orange-600">
-                {mockSongs.filter(s => s.hasLyrics).length}
+                {songs.filter(s => s.hasLyrics).length}
               </div>
               <p className="text-sm text-gray-600">Com Letras</p>
             </CardContent>
@@ -226,16 +254,29 @@ export const Repertoire = () => {
                       Letra
                     </Button>
                   )}
+                  <AddSongLinksDialog
+                    trigger={
+                      <Button variant="outline" size="sm">
+                        <Plus className="h-3 w-3 mr-1" />
+                        Recursos
+                      </Button>
+                    }
+                    song={song}
+                    onSave={handleSongLinksUpdated}
+                  />
                 </div>
 
                 {canEditRepertoire && (
                   <div className="flex space-x-2 pt-2 border-t">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      Editar
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
-                      Usar em Escala
-                    </Button>
+                    <EditSongDialog
+                      trigger={
+                        <Button variant="outline" size="sm" className="flex-1">
+                          Editar
+                        </Button>
+                      }
+                      song={song}
+                      onSongUpdated={handleSongUpdated}
+                    />
                   </div>
                 )}
               </CardContent>

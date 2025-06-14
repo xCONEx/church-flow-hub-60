@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar, Search, Plus, Clock, Users, Music, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { CreateScaleDialog } from '@/components/CreateScaleDialog';
 import { ViewScaleDialog } from '@/components/ViewScaleDialog';
 import { EditScaleDialog } from '@/components/EditScaleDialog';
@@ -116,11 +117,13 @@ const statusConfig = {
 
 export const Scales = () => {
   const { user } = useAuth();
+  const { addNotification } = useNotifications();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [scales, setScales] = useState(mockScales);
 
-  const filteredScales = mockScales.filter(scale => {
+  const filteredScales = scales.filter(scale => {
     const matchesSearch = scale.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          scale.department.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || scale.status === statusFilter;
@@ -132,16 +135,38 @@ export const Scales = () => {
   const canCreateScales = user?.role === 'admin' || user?.role === 'leader';
 
   const stats = {
-    total: mockScales.length,
-    published: mockScales.filter(s => s.status === 'published').length,
-    completed: mockScales.filter(s => s.status === 'completed').length,
-    needAttention: mockScales.filter(s => s.confirmedMembers < s.totalMembers && s.status === 'published').length,
+    total: scales.length,
+    published: scales.filter(s => s.status === 'published').length,
+    completed: scales.filter(s => s.status === 'completed').length,
+    needAttention: scales.filter(s => s.confirmedMembers < s.totalMembers && s.status === 'published').length,
   };
 
   const handleSaveScale = (updatedScale: any) => {
-    // Here you would typically update the scale in your state management or API
+    setScales(prev => prev.map(scale => 
+      scale.id === updatedScale.id ? updatedScale : scale
+    ));
     console.log('Scale updated:', updatedScale);
-    // For now, just log the updated scale
+  };
+
+  const handlePublishScale = (scaleId: string) => {
+    const scale = scales.find(s => s.id === scaleId);
+    if (!scale) return;
+
+    // Atualizar status da escala
+    const updatedScale = { ...scale, status: 'published' as const };
+    setScales(prev => prev.map(s => 
+      s.id === scaleId ? updatedScale : s
+    ));
+
+    // Criar notificação
+    addNotification({
+      type: 'scale',
+      title: 'Nova Escala Publicada',
+      message: `A escala "${scale.title}" do dia ${scale.date.toLocaleDateString('pt-BR')} foi publicada.`,
+      scaleId: scale.id
+    });
+
+    console.log('Scale published:', updatedScale);
   };
 
   return (
@@ -343,7 +368,12 @@ export const Scales = () => {
                             onSave={handleSaveScale}
                           />
                           {scale.status === 'draft' && (
-                            <Button variant="outline" size="sm">
+                            <Button 
+                              variant="default" 
+                              size="sm"
+                              onClick={() => handlePublishScale(scale.id)}
+                              className="bg-blue-600 hover:bg-blue-700"
+                            >
                               Publicar
                             </Button>
                           )}

@@ -5,12 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Music, Search, Plus, ExternalLink, FileText, send } from 'lucide-react';
+import { Music, Search, Plus, ExternalLink, FileText, Send } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddSongDialog } from '@/components/AddSongDialog';
 import { EditSongDialog } from '@/components/EditSongDialog';
 import { AddSongLinksDialog } from '@/components/AddSongLinksDialog';
-import { toast } from 'react-toastify';
+import { useToast } from '@/hooks/use-toast';
 
 // Mock data
 const initialMockSongs = [
@@ -90,6 +90,7 @@ const categories = ['Todas', 'Adoração', 'Celebração', 'Ministração', 'Com
 
 export const Repertoire = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [songs, setSongs] = useState(initialMockSongs);
   const [searchTerm, setSearchTerm] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('Todas');
@@ -141,7 +142,7 @@ export const Repertoire = () => {
               onClick={handleSendInvite}
               className="border-blue-500 text-blue-500 hover:bg-blue-50"
             >
-              <send className="h-4 w-4 mr-2" />
+              <Send className="h-4 w-4 mr-2" />
               Enviar Convite
             </Button>
             {canEditRepertoire && (

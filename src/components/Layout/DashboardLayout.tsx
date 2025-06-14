@@ -11,7 +11,7 @@ interface DashboardLayoutProps {
 
 export const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="min-h-screen bg-background flex transition-colors">
       {/* Desktop Sidebar */}
       <div className="hidden md:block">
         <Sidebar />
@@ -20,7 +20,7 @@ export const DashboardLayout = ({ children, title }: DashboardLayoutProps) => {
       {/* Main Content */}
       <div className="flex-1 md:ml-64">
         <Header title={title} />
-        <main className="p-6 pb-20 md:pb-6">
+        <main className="p-6 pb-20 md:pb-6 bg-background">
           {children}
         </main>
       </div>

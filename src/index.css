@@ -1,3 +1,4 @@
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -37,19 +38,12 @@
     --radius: 0.5rem;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
     --sidebar-ring: 217.2 91.2% 59.8%;
   }
 
@@ -98,6 +92,73 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground transition-colors;
+  }
+
+  /* Garantir que fundos específicos também respondam ao modo escuro */
+  .bg-gray-50 {
+    @apply bg-background;
+  }
+
+  .bg-white {
+    @apply bg-card;
+  }
+
+  .text-gray-900 {
+    @apply text-foreground;
+  }
+
+  .text-gray-600 {
+    @apply text-muted-foreground;
+  }
+
+  .text-gray-500 {
+    @apply text-muted-foreground;
+  }
+
+  .text-gray-400 {
+    @apply text-muted-foreground;
+  }
+
+  /* Garantir que gradients funcionem em modo escuro */
+  .bg-gradient-to-br {
+    @apply transition-colors;
+  }
+
+  /* Dark mode para elementos específicos */
+  .dark .bg-gray-50 {
+    @apply bg-background;
+  }
+
+  .dark .bg-white {
+    @apply bg-card;
+  }
+
+  .dark .text-gray-900 {
+    @apply text-foreground;
+  }
+
+  .dark .text-gray-600 {
+    @apply text-muted-foreground;
+  }
+
+  .dark .text-gray-500 {
+    @apply text-muted-foreground;
+  }
+
+  .dark .text-gray-400 {
+    @apply text-muted-foreground;
+  }
+
+  .dark .border-gray-300 {
+    @apply border-border;
+  }
+
+  .dark .bg-gray-100 {
+    @apply bg-muted;
+  }
+
+  .dark .bg-gray-800 {
+    @apply bg-card;
   }
 }

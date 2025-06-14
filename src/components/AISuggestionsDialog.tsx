@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Brain, Star, Users, CheckCircle, Lightbulb } from 'lucide-react';
+import { Brain, Star, Users, CheckCircle, Lightbulb, AlertCircle } from 'lucide-react';
 import { generateBalancedTeam } from '@/utils/scaleAI';
+import { useToast } from '@/hooks/use-toast';
 
 interface AISuggestionsDialogProps {
   open: boolean;
@@ -30,21 +31,63 @@ export const AISuggestionsDialog = ({
 }: AISuggestionsDialogProps) => {
   const [suggestions, setSuggestions] = useState<{ [department: string]: any[] }>({});
   const [isGenerating, setIsGenerating] = useState(false);
+  const { toast } = useToast();
 
   const generateSuggestions = async () => {
     setIsGenerating(true);
     
-    // Simular tempo de processamento da IA
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    const newSuggestions = generateBalancedTeam(requirements, availableMembers);
-    setSuggestions(newSuggestions);
-    setIsGenerating(false);
+    try {
+      // Validar se os dados necessários estão presentes
+      if (!requirements.department || !requirements.time || !requirements.date) {
+        toast({
+          title: "Dados Incompletos",
+          description: "Por favor, preencha o departamento, horário e data antes de gerar sugestões.",
+          variant: "destructive"
+        });
+        setIsGenerating(false);
+        return;
+      }
+
+      // Simular tempo de processamento da IA
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      const newSuggestions = generateBalancedTeam(requirements, availableMembers);
+      
+      if (Object.keys(newSuggestions).length === 0) {
+        toast({
+          title: "Nenhuma Sugestão Encontrada",
+          description: "Não foi possível gerar sugestões para os critérios selecionados.",
+          variant: "destructive"
+        });
+      } else {
+        toast({
+          title: "Sugestões Geradas!",
+          description: "A IA analisou os membros e criou as melhores sugestões para sua escala.",
+        });
+        setSuggestions(newSuggestions);
+      }
+    } catch (error) {
+      toast({
+        title: "Erro ao Gerar Sugestões",
+        description: "Ocorreu um erro ao processar as sugestões. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   const handleApplySuggestions = () => {
     onApplySuggestions(suggestions);
+    toast({
+      title: "Sugestões Aplicadas!",
+      description: "As sugestões da IA foram aplicadas à sua escala.",
+    });
     onOpenChange(false);
+  };
+
+  const resetSuggestions = () => {
+    setSuggestions({});
   };
 
   return (
@@ -69,7 +112,7 @@ export const AISuggestionsDialog = ({
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div>
                   <span className="font-medium text-gray-600">Departamento:</span>
-                  <p className="font-semibold">{requirements.department}</p>
+                  <p className="font-semibold">{requirements.department || 'Não definido'}</p>
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">Data:</span>
@@ -77,13 +120,22 @@ export const AISuggestionsDialog = ({
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">Horário:</span>
-                  <p className="font-semibold">{requirements.time}</p>
+                  <p className="font-semibold">{requirements.time || 'Não definido'}</p>
                 </div>
                 <div>
                   <span className="font-medium text-gray-600">Tipo:</span>
-                  <p className="font-semibold">{requirements.serviceType}</p>
+                  <p className="font-semibold">{requirements.serviceType || 'Não definido'}</p>
                 </div>
               </div>
+              
+              {(!requirements.department || !requirements.time) && (
+                <div className="flex items-center space-x-2 mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                  <AlertCircle className="h-4 w-4 text-yellow-600" />
+                  <span className="text-sm text-yellow-800">
+                    Dados incompletos. Complete o departamento e horário para melhores sugestões.
+                  </span>
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -97,7 +149,7 @@ export const AISuggestionsDialog = ({
               </p>
               <Button 
                 onClick={generateSuggestions} 
-                disabled={isGenerating}
+                disabled={isGenerating || !requirements.department || !requirements.time}
                 className="bg-gradient-to-r from-purple-600 to-blue-600"
               >
                 {isGenerating ? (
@@ -123,10 +175,15 @@ export const AISuggestionsDialog = ({
                   <CheckCircle className="h-5 w-5 text-green-600" />
                   <span>Sugestões Geradas</span>
                 </h3>
-                <Button onClick={generateSuggestions} variant="outline" size="sm">
-                  <Brain className="h-4 w-4 mr-2" />
-                  Regenerar
-                </Button>
+                <div className="flex space-x-2">
+                  <Button onClick={resetSuggestions} variant="outline" size="sm">
+                    Limpar
+                  </Button>
+                  <Button onClick={generateSuggestions} variant="outline" size="sm">
+                    <Brain className="h-4 w-4 mr-2" />
+                    Regenerar
+                  </Button>
+                </div>
               </div>
 
               {Object.entries(suggestions).map(([department, members]) => (
@@ -135,6 +192,7 @@ export const AISuggestionsDialog = ({
                     <CardTitle className="flex items-center space-x-2">
                       <Users className="h-5 w-5" />
                       <span>{department}</span>
+                      <Badge variant="secondary">{members.length} membros</Badge>
                     </CardTitle>
                   </CardHeader>
                   <CardContent>

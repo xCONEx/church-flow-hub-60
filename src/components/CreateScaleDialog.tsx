@@ -9,10 +9,11 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, Users, Music, FileText, Clock, Search, X, UserPlus, GripVertical, Brain, Sparkles } from 'lucide-react';
+import { Plus, Calendar, Users, Music, FileText, Clock, Search, X, UserPlus, GripVertical, Brain, Sparkles, Link as LinkIcon } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AISuggestionsDialog } from '@/components/AISuggestionsDialog';
 import { TemplateSelectionDialog } from '@/components/TemplateSelectionDialog';
+import { AddSongLinksDialog } from '@/components/AddSongLinksDialog';
 
 // Mock data
 const mockServiceTypes = [
@@ -306,6 +307,12 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
     console.log('Template aplicado:', template);
   };
 
+  const updateSongResources = (songId: string, updates: any) => {
+    setSelectedSongs(prev => prev.map(song => 
+      song.id === songId ? { ...song, ...updates } : song
+    ));
+  };
+
   return (
     <>
       <Dialog open={open} onOpenChange={setOpen}>
@@ -335,7 +342,13 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
             <Button
               variant="outline"
               className="h-20 flex flex-col items-center space-y-2 border-2 hover:border-purple-300"
-              onClick={() => setShowAIDialog(true)}
+              onClick={() => {
+                if (!formData.department || !formData.time || !formData.date) {
+                  alert('Preencha pelo menos o Departamento, Data e Horário antes de usar a IA.');
+                  return;
+                }
+                setShowAIDialog(true);
+              }}
             >
               <Brain className="h-6 w-6 text-purple-600" />
               <span className="text-sm font-medium">Sugestão com IA</span>
@@ -759,13 +772,24 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
                               <span className="text-xs text-gray-400">(Original: {song.originalKey})</span>
                             </div>
                           </div>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => removeSongFromScale(song.id)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+                          <div className="flex items-center space-x-2">
+                            <AddSongLinksDialog
+                              trigger={
+                                <Button variant="outline" size="sm">
+                                  <LinkIcon className="h-4 w-4" />
+                                </Button>
+                              }
+                              song={song}
+                              onSave={updateSongResources}
+                            />
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeSongFromScale(song.id)}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          </div>
                         </div>
                       ))
                     )}

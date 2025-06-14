@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -9,7 +8,7 @@ import { ptBR } from 'date-fns/locale';
 import { useEvents } from '@/contexts/EventContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import QRCode from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 
 interface EventDetailsDialogProps {
   eventId: string;
@@ -218,7 +217,7 @@ export const EventDetailsDialog = ({ eventId, open, onOpenChange }: EventDetails
               {showQR && (
                 <div className="flex justify-center p-4 bg-white rounded-lg border">
                   <div className="text-center">
-                    <QRCode 
+                    <QRCodeSVG 
                       value={userRegistration.qrCode} 
                       size={200}
                       level="M"

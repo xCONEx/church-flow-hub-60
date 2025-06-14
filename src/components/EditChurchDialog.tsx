@@ -1,29 +1,46 @@
 
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Plus } from 'lucide-react';
 import { useMaster } from '@/contexts/MasterContext';
 import { useToast } from '@/hooks/use-toast';
 
-interface CreateChurchDialogProps {
-  trigger?: React.ReactNode;
+interface Church {
+  id: string;
+  name: string;
+  address?: string;
+  phone?: string;
+  email?: string;
 }
 
-export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
-  const [isOpen, setIsOpen] = useState(false);
+interface EditChurchDialogProps {
+  church: Church;
+  isOpen: boolean;
+  onClose: () => void;
+}
+
+export const EditChurchDialog = ({ church, isOpen, onClose }: EditChurchDialogProps) => {
   const [formData, setFormData] = useState({
-    name: '',
-    address: '',
-    phone: '',
-    email: '',
+    name: church.name,
+    address: church.address || '',
+    phone: church.phone || '',
+    email: church.email || '',
   });
   
-  const { createChurch, isLoading } = useMaster();
+  const { updateChurch, isLoading } = useMaster();
   const { toast } = useToast();
+
+  useEffect(() => {
+    setFormData({
+      name: church.name,
+      address: church.address || '',
+      phone: church.phone || '',
+      email: church.email || '',
+    });
+  }, [church]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,27 +54,17 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
       return;
     }
 
-    if (!formData.email.trim()) {
-      toast({
-        title: "Erro",
-        description: "Email do administrador é obrigatório",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
-      await createChurch(formData);
+      await updateChurch(church.id, formData);
       toast({
         title: "Sucesso!",
-        description: "Igreja criada com sucesso. Um usuário admin foi criado automaticamente.",
+        description: "Igreja atualizada com sucesso",
       });
-      setIsOpen(false);
-      setFormData({ name: '', address: '', phone: '', email: '' });
+      onClose();
     } catch (error) {
       toast({
         title: "Erro",
-        description: "Erro ao criar igreja",
+        description: "Erro ao atualizar igreja",
         variant: "destructive",
       });
     }
@@ -68,24 +75,16 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button className="h-20 flex-col bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600">
-            <Plus className="h-6 w-6 mb-2" />
-            Nova Igreja
-          </Button>
-        )}
-      </DialogTrigger>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Criar Nova Igreja</DialogTitle>
+          <DialogTitle>Editar Igreja</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Nome da Igreja *</Label>
+            <Label htmlFor="edit-name">Nome da Igreja *</Label>
             <Input
-              id="name"
+              id="edit-name"
               value={formData.name}
               onChange={(e) => handleInputChange('name', e.target.value)}
               placeholder="Ex: Igreja Batista Central"
@@ -94,9 +93,9 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="address">Endereço</Label>
+            <Label htmlFor="edit-address">Endereço</Label>
             <Textarea
-              id="address"
+              id="edit-address"
               value={formData.address}
               onChange={(e) => handleInputChange('address', e.target.value)}
               placeholder="Endereço completo da igreja"
@@ -106,9 +105,9 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
           
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
+              <Label htmlFor="edit-phone">Telefone</Label>
               <Input
-                id="phone"
+                id="edit-phone"
                 value={formData.phone}
                 onChange={(e) => handleInputChange('phone', e.target.value)}
                 placeholder="(11) 99999-9999"
@@ -116,18 +115,14 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
             </div>
             
             <div className="space-y-2">
-              <Label htmlFor="email">Email do Administrador *</Label>
+              <Label htmlFor="edit-email">Email do Admin</Label>
               <Input
-                id="email"
+                id="edit-email"
                 type="email"
                 value={formData.email}
                 onChange={(e) => handleInputChange('email', e.target.value)}
                 placeholder="admin@igreja.com"
-                required
               />
-              <p className="text-xs text-gray-500">
-                Este email será usado para criar o usuário administrador da igreja
-              </p>
             </div>
           </div>
           
@@ -135,13 +130,13 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
             <Button
               type="button"
               variant="outline"
-              onClick={() => setIsOpen(false)}
+              onClick={onClose}
               disabled={isLoading}
             >
               Cancelar
             </Button>
             <Button type="submit" disabled={isLoading}>
-              {isLoading ? 'Criando...' : 'Criar Igreja'}
+              {isLoading ? 'Salvando...' : 'Salvar Alterações'}
             </Button>
           </div>
         </form>

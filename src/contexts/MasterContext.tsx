@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Church, User } from '@/types';
 
@@ -169,12 +168,19 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       isActive: true,
     };
     
+    // Simular criação do usuário admin com o email da igreja
+    if (churchData.email) {
+      console.log(`Criando usuário admin para igreja ${churchData.name} com email: ${churchData.email}`);
+      console.log('Admin criado automaticamente com role: admin');
+    }
+    
     setChurches(prev => [...prev, newChurch]);
     setStats(prev => ({
       ...prev,
       totalChurches: prev.totalChurches + 1,
       activeChurches: prev.activeChurches + 1,
       newChurchesThisMonth: prev.newChurchesThisMonth + 1,
+      totalUsers: prev.totalUsers + 1, // +1 pelo novo admin
     }));
     
     setIsLoading(false);
@@ -187,6 +193,8 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     setChurches(prev => prev.map(church => 
       church.id === churchId ? { ...church, ...data } : church
     ));
+    
+    console.log(`Igreja ${churchId} atualizada com:`, data);
     
     setIsLoading(false);
   };

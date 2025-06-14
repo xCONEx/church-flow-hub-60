@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar, Users, Music, Clock, User, CheckCircle, X } from 'lucide-react';
+import { Calendar, Users, Music, Clock, User, CheckCircle, X, GripVertical } from 'lucide-react';
 import { SongDetailsModal } from './SongDetailsModal';
 
 interface ViewScaleDialogProps {
@@ -33,6 +33,41 @@ export const ViewScaleDialog = ({ trigger, scale }: ViewScaleDialogProps) => {
 
   const statusInfo = statusConfig[scale.status as keyof typeof statusConfig];
   const StatusIcon = statusInfo.icon;
+
+  // Mock agenda data for demonstration
+  const mockAgenda = [
+    {
+      id: 1,
+      time: '09:00',
+      block: 'Oração',
+      description: 'Oração de Abertura',
+      people: [
+        { id: '1', name: 'Pastor João', role: 'Pastor' }
+      ],
+      notes: 'Oração pelos visitantes'
+    },
+    {
+      id: 2,
+      time: '09:10',
+      block: 'Louvor',
+      description: 'Momento de Adoração',
+      people: [
+        { id: '2', name: 'Ana Karolina', role: 'Vocal Principal' },
+        { id: '3', name: 'Yuri Adriel', role: 'Guitarra' }
+      ],
+      notes: 'Três músicas de louvor'
+    },
+    {
+      id: 3,
+      time: '09:30',
+      block: 'Palavra',
+      description: 'Mensagem',
+      people: [
+        { id: '1', name: 'Pastor João', role: 'Pastor' }
+      ],
+      notes: 'Série: Fé que Transforma'
+    }
+  ];
 
   // Mock songs data with details
   const songsWithDetails = scale.songs.map((songTitle: string) => ({
@@ -81,7 +116,6 @@ export const ViewScaleDialog = ({ trigger, scale }: ViewScaleDialogProps) => {
                   <StatusIcon className="h-3 w-3 mr-1" />
                   {statusInfo.label}
                 </Badge>
-                <Badge variant="outline">{scale.department}</Badge>
               </div>
             </div>
           </DialogTitle>
@@ -97,7 +131,7 @@ export const ViewScaleDialog = ({ trigger, scale }: ViewScaleDialogProps) => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <p className="text-sm text-gray-600">Data e Hora</p>
                   <p className="font-semibold">
@@ -105,23 +139,75 @@ export const ViewScaleDialog = ({ trigger, scale }: ViewScaleDialogProps) => {
                   </p>
                 </div>
                 <div>
-                  <p className="text-sm text-gray-600">Departamento</p>
-                  <p className="font-semibold">{scale.department}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Criado por</p>
-                  <p className="font-semibold">{scale.createdBy}</p>
+                  <p className="text-sm text-gray-600">Título</p>
+                  <p className="font-semibold">{scale.title}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Tabs defaultValue="team" className="w-full">
-            <TabsList className="grid w-full grid-cols-3">
+          <Tabs defaultValue="steps" className="w-full">
+            <TabsList className="grid w-full grid-cols-4">
+              <TabsTrigger value="steps">Etapas</TabsTrigger>
               <TabsTrigger value="team">Equipe</TabsTrigger>
               <TabsTrigger value="songs">Músicas</TabsTrigger>
               <TabsTrigger value="details">Detalhes</TabsTrigger>
             </TabsList>
+
+            {/* Tab: Etapas */}
+            <TabsContent value="steps" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Clock className="h-5 w-5" />
+                    <span>Agenda do Culto</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {mockAgenda.length > 0 ? (
+                    <div className="space-y-3">
+                      {mockAgenda.map((item, index) => (
+                        <div key={item.id} className="border rounded-lg p-4">
+                          <div className="flex items-center space-x-3 mb-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                              <span className="text-sm font-medium text-blue-600">{index + 1}</span>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3">
+                                <span className="font-medium text-lg">{item.time}</span>
+                                <Badge variant="outline">{item.block}</Badge>
+                              </div>
+                              <p className="text-gray-600 mt-1">{item.description}</p>
+                            </div>
+                          </div>
+                          
+                          {item.people.length > 0 && (
+                            <div className="mb-3">
+                              <p className="text-sm font-medium text-gray-700 mb-2">Responsáveis:</p>
+                              <div className="flex flex-wrap gap-2">
+                                {item.people.map((person: any) => (
+                                  <Badge key={person.id} variant="secondary">
+                                    {person.name} - {person.role}
+                                  </Badge>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                          
+                          {item.notes && (
+                            <div className="bg-gray-50 rounded p-3">
+                              <p className="text-sm text-gray-600">{item.notes}</p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-gray-500 text-center py-8">Nenhuma etapa definida na agenda</p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
 
             {/* Tab: Equipe */}
             <TabsContent value="team" className="space-y-4">
@@ -220,12 +306,6 @@ export const ViewScaleDialog = ({ trigger, scale }: ViewScaleDialogProps) => {
                   <CardTitle>Informações Adicionais</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-sm text-gray-600">Data de Criação</p>
-                    <p className="font-semibold">
-                      {scale.createdAt.toLocaleDateString('pt-BR')} às {scale.createdAt.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
                   <div>
                     <p className="text-sm text-gray-600">Status da Escala</p>
                     <div className="flex items-center space-x-2 mt-1">

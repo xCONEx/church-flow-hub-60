@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Users, Music, Plus, X, Settings } from 'lucide-react';
+import { Calendar, Users, Music, Plus, X, Settings, GripVertical } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { SongDetailsModal } from './SongDetailsModal';
 import { AddSongLinksDialog } from './AddSongLinksDialog';
@@ -30,6 +30,27 @@ export const EditScaleDialog = ({ trigger, scale, onSave }: EditScaleDialogProps
 
   const [selectedSongs, setSelectedSongs] = useState(scale.songs || []);
   const [teamMembers, setTeamMembers] = useState(scale.members || []);
+  const [agenda, setAgenda] = useState([
+    {
+      id: 1,
+      time: '09:00',
+      block: 'Oração',
+      description: 'Oração de Abertura',
+      people: [{ id: '1', name: 'Pastor João', role: 'Pastor' }],
+      notes: 'Oração pelos visitantes'
+    },
+    {
+      id: 2,
+      time: '09:10',
+      block: 'Louvor',
+      description: 'Momento de Adoração',
+      people: [
+        { id: '2', name: 'Ana Karolina', role: 'Vocal Principal' },
+        { id: '3', name: 'Yuri Adriel', role: 'Guitarra' }
+      ],
+      notes: 'Três músicas de louvor'
+    }
+  ]);
 
   // Mock songs data
   const availableSongs = [
@@ -40,15 +61,25 @@ export const EditScaleDialog = ({ trigger, scale, onSave }: EditScaleDialogProps
 
   // Mock members data
   const availableMembers = [
-    { name: 'Ana Karolina', roles: ['Vocal Principal', 'Vocal'] },
-    { name: 'Yuri Adriel', roles: ['Guitarra', 'Violão'] },
-    { name: 'Arthur', roles: ['Bateria'] },
-    { name: 'João Pedro', roles: ['Baixo', 'Projeção'] },
-    { name: 'Maria Silva', roles: ['Vocal'] },
-    { name: 'Carlos Santos', roles: ['Teclado'] },
-    { name: 'Pedro Costa', roles: ['Violão', 'Cajon'] },
-    { name: 'Alexandre', roles: ['Sonoplastia'] },
-    { name: 'Oswaldo', roles: ['Fotografia'] }
+    { id: '1', name: 'Ana Karolina', roles: ['Vocal Principal', 'Vocal'] },
+    { id: '2', name: 'Yuri Adriel', roles: ['Guitarra', 'Violão'] },
+    { id: '3', name: 'Arthur', roles: ['Bateria'] },
+    { id: '4', name: 'João Pedro', roles: ['Baixo', 'Projeção'] },
+    { id: '5', name: 'Maria Silva', roles: ['Vocal'] },
+    { id: '6', name: 'Carlos Santos', roles: ['Teclado'] },
+    { id: '7', name: 'Pedro Costa', roles: ['Violão', 'Cajon'] },
+    { id: '8', name: 'Alexandre', roles: ['Sonoplastia'] },
+    { id: '9', name: 'Oswaldo', roles: ['Fotografia'] },
+    { id: '10', name: 'Pastor João', roles: ['Pastor', 'Pregação'] }
+  ];
+
+  const agendaBlocks = [
+    'Oração',
+    'Louvor',
+    'Avisos', 
+    'Palavra',
+    'Ministração',
+    'Encerramento'
   ];
 
   const handleSave = () => {
@@ -58,6 +89,7 @@ export const EditScaleDialog = ({ trigger, scale, onSave }: EditScaleDialogProps
       date: new Date(formData.date + 'T00:00:00'),
       songs: selectedSongs,
       members: teamMembers,
+      agenda: agenda,
       totalMembers: teamMembers.length,
       confirmedMembers: teamMembers.filter(m => m.confirmed).length
     };
@@ -94,6 +126,31 @@ export const EditScaleDialog = ({ trigger, scale, onSave }: EditScaleDialogProps
     const updated = [...teamMembers];
     updated[index].confirmed = !updated[index].confirmed;
     setTeamMembers(updated);
+  };
+
+  const addAgendaItem = () => {
+    setAgenda(prev => [...prev, {
+      id: Date.now(),
+      time: '',
+      block: '',
+      description: '',
+      people: [],
+      notes: ''
+    }]);
+  };
+
+  const addPersonToAgendaItem = (agendaIndex: number, person: any) => {
+    const newAgenda = [...agenda];
+    if (!newAgenda[agendaIndex].people.some((p: any) => p.id === person.id)) {
+      newAgenda[agendaIndex].people.push(person);
+      setAgenda(newAgenda);
+    }
+  };
+
+  const removePersonFromAgendaItem = (agendaIndex: number, personId: string) => {
+    const newAgenda = [...agenda];
+    newAgenda[agendaIndex].people = newAgenda[agendaIndex].people.filter((p: any) => p.id !== personId);
+    setAgenda(newAgenda);
   };
 
   const handleSongResourcesUpdate = (songId: string, updates: any) => {
@@ -198,6 +255,126 @@ export const EditScaleDialog = ({ trigger, scale, onSave }: EditScaleDialogProps
                   </SelectContent>
                 </Select>
               </div>
+            </CardContent>
+          </Card>
+
+          {/* Agenda do Culto */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                Agenda do Culto
+                <Button onClick={addAgendaItem} size="sm">
+                  <Plus className="h-4 w-4 mr-1" />
+                  Adicionar Item
+                </Button>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {agenda.map((item, index) => (
+                <div key={item.id} className="border rounded-lg p-4 space-y-3">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
+                    <span className="text-sm font-medium text-gray-600">Item {index + 1}</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label>Horário</Label>
+                      <Input
+                        type="time"
+                        value={item.time}
+                        onChange={(e) => {
+                          const newAgenda = [...agenda];
+                          newAgenda[index].time = e.target.value;
+                          setAgenda(newAgenda);
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <Label>Bloco</Label>
+                      <Select value={item.block} onValueChange={(value) => {
+                        const newAgenda = [...agenda];
+                        newAgenda[index].block = value;
+                        setAgenda(newAgenda);
+                      }}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Selecione" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {agendaBlocks.map(block => (
+                            <SelectItem key={block} value={block}>{block}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Descrição</Label>
+                      <Input
+                        value={item.description}
+                        onChange={(e) => {
+                          const newAgenda = [...agenda];
+                          newAgenda[index].description = e.target.value;
+                          setAgenda(newAgenda);
+                        }}
+                        placeholder="Ex: Momento de Louvor"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Pessoas responsáveis */}
+                  <div>
+                    <div className="flex items-center justify-between mb-2">
+                      <Label>Pessoas Responsáveis</Label>
+                      <Select onValueChange={(value) => {
+                        const person = availableMembers.find(m => m.id === value);
+                        if (person) addPersonToAgendaItem(index, person);
+                      }}>
+                        <SelectTrigger className="w-48">
+                          <SelectValue placeholder="Adicionar Pessoa" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableMembers
+                            .filter(member => !item.people.some((p: any) => p.id === member.id))
+                            .map(member => (
+                              <SelectItem key={member.id} value={member.id}>
+                                {member.name}
+                              </SelectItem>
+                            ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="flex flex-wrap gap-2">
+                      {item.people.map((person: any) => (
+                        <Badge key={person.id} variant="secondary" className="flex items-center space-x-1">
+                          <span>{person.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-4 w-4 p-0 hover:bg-transparent"
+                            onClick={() => removePersonFromAgendaItem(index, person.id)}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Observações</Label>
+                    <Input
+                      value={item.notes}
+                      onChange={(e) => {
+                        const newAgenda = [...agenda];
+                        newAgenda[index].notes = e.target.value;
+                        setAgenda(newAgenda);
+                      }}
+                      placeholder="Observações adicionais"
+                    />
+                  </div>
+                </div>
+              ))}
             </CardContent>
           </Card>
 

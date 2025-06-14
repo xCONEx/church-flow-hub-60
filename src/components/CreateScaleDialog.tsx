@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Calendar, Users, Music, FileText, Clock, Search, X, UserPlus } from 'lucide-react';
+import { Plus, Calendar, Users, Music, FileText, Clock, Search, X, UserPlus, GripVertical } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
 // Mock data
@@ -225,9 +225,30 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
       time: '',
       block: '',
       description: '',
-      key: '',
+      people: [],
       notes: ''
     }]);
+  };
+
+  const addPersonToAgendaItem = (agendaIndex: number, person: any) => {
+    const newAgenda = [...agenda];
+    if (!newAgenda[agendaIndex].people.some((p: any) => p.id === person.id)) {
+      newAgenda[agendaIndex].people.push(person);
+      setAgenda(newAgenda);
+    }
+  };
+
+  const removePersonFromAgendaItem = (agendaIndex: number, personId: string) => {
+    const newAgenda = [...agenda];
+    newAgenda[agendaIndex].people = newAgenda[agendaIndex].people.filter((p: any) => p.id !== personId);
+    setAgenda(newAgenda);
+  };
+
+  const moveAgendaItem = (fromIndex: number, toIndex: number) => {
+    const newAgenda = [...agenda];
+    const [movedItem] = newAgenda.splice(fromIndex, 1);
+    newAgenda.splice(toIndex, 0, movedItem);
+    setAgenda(newAgenda);
   };
 
   const filteredMembers = mockMembers.filter(member => 
@@ -370,7 +391,12 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
                 ) : (
                   agenda.map((item, index) => (
                     <div key={item.id} className="border rounded-lg p-4 space-y-3">
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <GripVertical className="h-4 w-4 text-gray-400 cursor-move" />
+                        <span className="text-sm font-medium text-gray-600">Item {index + 1}</span>
+                      </div>
+                      
+                      <div className="grid grid-cols-3 gap-4">
                         <div>
                           <Label>Horário</Label>
                           <Input
@@ -409,27 +435,51 @@ export const CreateScaleDialog = ({ trigger }: CreateScaleDialogProps) => {
                               newAgenda[index].description = e.target.value;
                               setAgenda(newAgenda);
                             }}
-                            placeholder="Ex: Rei do Meu Coração"
+                            placeholder="Ex: Momento de Louvor"
                           />
                         </div>
-                        <div>
-                          <Label>Tom</Label>
-                          <Select value={item.key} onValueChange={(value) => {
-                            const newAgenda = [...agenda];
-                            newAgenda[index].key = value;
-                            setAgenda(newAgenda);
+                      </div>
+
+                      {/* Pessoas responsáveis */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2">
+                          <Label>Pessoas Responsáveis</Label>
+                          <Select onValueChange={(value) => {
+                            const person = mockMembers.find(m => m.id === value);
+                            if (person) addPersonToAgendaItem(index, person);
                           }}>
-                            <SelectTrigger>
-                              <SelectValue placeholder="Tom" />
+                            <SelectTrigger className="w-48">
+                              <SelectValue placeholder="Adicionar Pessoa" />
                             </SelectTrigger>
                             <SelectContent>
-                              {musicalKeys.map(key => (
-                                <SelectItem key={key} value={key}>{key}</SelectItem>
-                              ))}
+                              {mockMembers
+                                .filter(member => !item.people.some((p: any) => p.id === member.id))
+                                .map(member => (
+                                  <SelectItem key={member.id} value={member.id}>
+                                    {member.name} - {member.role}
+                                  </SelectItem>
+                                ))}
                             </SelectContent>
                           </Select>
                         </div>
+                        
+                        <div className="flex flex-wrap gap-2">
+                          {item.people.map((person: any) => (
+                            <Badge key={person.id} variant="secondary" className="flex items-center space-x-1">
+                              <span>{person.name}</span>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-4 w-4 p-0 hover:bg-transparent"
+                                onClick={() => removePersonFromAgendaItem(index, person.id)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </Badge>
+                          ))}
+                        </div>
                       </div>
+
                       <div>
                         <Label>Observações</Label>
                         <Input

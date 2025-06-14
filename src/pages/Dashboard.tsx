@@ -80,6 +80,7 @@ const mockSongs = [
 export const Dashboard = () => {
   const { user, church } = useAuth();
   const navigate = useNavigate();
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   // Redirecionar usuário master para o dashboard específico
   useEffect(() => {

@@ -96,6 +96,12 @@ export const EditScaleDialog = ({ trigger, scale, onSave }: EditScaleDialogProps
     setTeamMembers(updated);
   };
 
+  const handleSongResourcesUpdate = (songId: string, updates: any) => {
+    // Here you would update the song resources
+    // For now, just log the updates
+    console.log('Song resources updated:', songId, updates);
+  };
+
   // Convert songs to detailed format for modal
   const songsWithDetails = selectedSongs.map((songTitle: string) => ({
     id: `song-${songTitle.toLowerCase().replace(/\s+/g, '-')}`,
@@ -248,6 +254,7 @@ export const EditScaleDialog = ({ trigger, scale, onSave }: EditScaleDialogProps
                           </Button>
                         }
                         song={song}
+                        onSave={handleSongResourcesUpdate}
                       />
                       <Button 
                         variant="outline" 

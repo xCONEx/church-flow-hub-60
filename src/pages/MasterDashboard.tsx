@@ -1,6 +1,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Building, Users, BarChart3 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Building, Users, BarChart3, LogOut } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMaster } from '@/contexts/MasterContext';
 import { CreateChurchDialog } from '@/components/CreateChurchDialog';
@@ -9,8 +10,12 @@ import { GlobalReportsDialog } from '@/components/GlobalReportsDialog';
 import { SystemSettingsDialog } from '@/components/SystemSettingsDialog';
 
 export const MasterDashboard = () => {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { stats, activities, isLoading } = useMaster();
+
+  const handleLogout = () => {
+    logout();
+  };
 
   if (isLoading) {
     return (
@@ -24,13 +29,23 @@ export const MasterDashboard = () => {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Dashboard Master
-          </h1>
-          <p className="text-gray-600 mt-2">
-            Bem-vindo, {user?.name}! Gerencie o sistema Church Manager
-          </p>
+        <div className="mb-8 flex justify-between items-center">
+          <div>
+            <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              Dashboard Master
+            </h1>
+            <p className="text-gray-600 mt-2">
+              Bem-vindo, {user?.name}! Gerencie o sistema Church Manager
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={handleLogout}
+            className="flex items-center space-x-2 hover:bg-red-50 hover:text-red-600 hover:border-red-300"
+          >
+            <LogOut className="h-4 w-4" />
+            <span>Sair</span>
+          </Button>
         </div>
 
         {/* Stats Cards */}

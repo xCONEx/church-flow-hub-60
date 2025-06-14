@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,11 +19,18 @@ interface EditCourseDialogProps {
 }
 
 export const EditCourseDialog = ({ course, open, onOpenChange, onSave }: EditCourseDialogProps) => {
-  const [editedCourse, setEditedCourse] = useState<Course | null>(course);
+  const [editedCourse, setEditedCourse] = useState<Course | null>(null);
   const [editingModule, setEditingModule] = useState<string | null>(null);
   const [editingLesson, setEditingLesson] = useState<string | null>(null);
   const [newModuleTitle, setNewModuleTitle] = useState('');
   const [newLessonTitle, setNewLessonTitle] = useState('');
+
+  // Atualizar o estado quando o curso mudar
+  useEffect(() => {
+    if (course) {
+      setEditedCourse({ ...course });
+    }
+  }, [course]);
 
   if (!course || !editedCourse) return null;
 
@@ -57,11 +64,12 @@ export const EditCourseDialog = ({ course, open, onOpenChange, onSave }: EditCou
   const addLesson = (moduleId: string) => {
     if (!newLessonTitle.trim()) return;
 
+    const targetModule = editedCourse.modules.find(m => m.id === moduleId);
     const newLesson: Lesson = {
       id: Date.now().toString(),
       moduleId,
       title: newLessonTitle.trim(),
-      order: editedCourse.modules.find(m => m.id === moduleId)?.lessons.length || 0 + 1,
+      order: (targetModule?.lessons.length || 0) + 1,
       files: [],
       createdAt: new Date()
     };
@@ -268,6 +276,11 @@ export const EditCourseDialog = ({ course, open, onOpenChange, onSave }: EditCou
                                     onChange={(e) => updateLesson(module.id, lesson.id, { videoUrl: e.target.value })}
                                   />
                                 </div>
+                                <Textarea
+                                  placeholder="Conteúdo da aula"
+                                  value={lesson.content || ''}
+                                  onChange={(e) => updateLesson(module.id, lesson.id, { content: e.target.value })}
+                                />
                                 <div className="flex gap-2">
                                   <Button size="sm" onClick={() => setEditingLesson(null)}>
                                     <Save className="h-4 w-4" />
@@ -281,6 +294,7 @@ export const EditCourseDialog = ({ course, open, onOpenChange, onSave }: EditCou
                               <div>
                                 <p className="font-medium">{lesson.title}</p>
                                 {lesson.duration && <p className="text-sm text-gray-600">{lesson.duration} min</p>}
+                                {lesson.content && <p className="text-sm text-gray-600 mt-1 line-clamp-2">{lesson.content}</p>}
                               </div>
                             )}
                           </div>

@@ -14,9 +14,14 @@ import { StatsCard } from '@/components/StatsCard';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 export const Dashboard = () => {
   const { user, church } = useAuth();
+  const navigate = useNavigate();
+  const [tutorialOpen, setTutorialOpen] = useState(false);
 
   const statsData = [
     {
@@ -92,11 +97,12 @@ export const Dashboard = () => {
     }
   ];
 
+  // Dados das próximas escalas com datas mais realistas
   const upcomingScales = [
     {
       id: 1,
       title: "Culto Domingo Manhã",
-      date: "2024-01-14",
+      date: "2024-12-15",
       time: "09:00",
       department: "Louvor",
       confirmed: 4,
@@ -105,7 +111,7 @@ export const Dashboard = () => {
     {
       id: 2,
       title: "Reunião de Oração",
-      date: "2024-01-16",
+      date: "2024-12-17",
       time: "19:30",
       department: "Louvor",
       confirmed: 3,
@@ -114,13 +120,83 @@ export const Dashboard = () => {
     {
       id: 3,
       title: "Culto Domingo Noite",
-      date: "2024-01-14",
+      date: "2024-12-15",
       time: "19:00",
       department: "Mídia",
       confirmed: 2,
       total: 3
     }
   ];
+
+  const handleQuickAction = (action: string) => {
+    switch (action) {
+      case 'new-scale':
+        navigate('/scales');
+        break;
+      case 'add-member':
+        navigate('/members');
+        break;
+      case 'add-song':
+        navigate('/repertoire');
+        break;
+      case 'reports':
+        navigate('/reports');
+        break;
+      default:
+        console.log(`Action not implemented: ${action}`);
+    }
+  };
+
+  const TutorialContent = () => (
+    <div className="space-y-6">
+      <div className="space-y-4">
+        <h3 className="text-lg font-semibold">🎯 Bem-vindo ao Sistema de Escalas!</h3>
+        <p className="text-sm text-muted-foreground">
+          Este tutorial vai te ajudar a navegar pelas principais funcionalidades do sistema.
+        </p>
+      </div>
+
+      <div className="space-y-4">
+        <div className="border-l-4 border-blue-500 pl-4">
+          <h4 className="font-medium">📊 Dashboard</h4>
+          <p className="text-sm text-muted-foreground">
+            Visualize estatísticas importantes, atividades recentes e próximas escalas.
+          </p>
+        </div>
+
+        <div className="border-l-4 border-green-500 pl-4">
+          <h4 className="font-medium">📅 Escalas</h4>
+          <p className="text-sm text-muted-foreground">
+            Crie, edite e gerencie escalas de cultos e eventos. Confirme presenças e organize sua equipe.
+          </p>
+        </div>
+
+        <div className="border-l-4 border-purple-500 pl-4">
+          <h4 className="font-medium">👥 Membros</h4>
+          <p className="text-sm text-muted-foreground">
+            Gerencie sua equipe ministerial, adicione novos membros e organize por departamentos.
+          </p>
+        </div>
+
+        <div className="border-l-4 border-orange-500 pl-4">
+          <h4 className="font-medium">🎵 Repertório</h4>
+          <p className="text-sm text-muted-foreground">
+            Mantenha um catálogo de músicas com letras, acordes e links para facilitar os ensaios.
+          </p>
+        </div>
+      </div>
+
+      <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
+        <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">💡 Dicas Importantes:</h4>
+        <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+          <li>• Use as ações rápidas para acessar funcionalidades frequentes</li>
+          <li>• Confirme sua presença nas escalas o quanto antes</li>
+          <li>• Mantenha seu perfil sempre atualizado</li>
+          <li>• Use o modo escuro nas configurações para melhor experiência noturna</li>
+        </ul>
+      </div>
+    </div>
+  );
 
   return (
     <DashboardLayout title="Dashboard">
@@ -134,9 +210,22 @@ export const Dashboard = () => {
             Bem-vindo ao painel de controle da {church?.name}. 
             Aqui você pode acompanhar todas as atividades ministeriais.
           </p>
-          <Button variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
-            Ver Tutorial
-          </Button>
+          <Dialog open={tutorialOpen} onOpenChange={setTutorialOpen}>
+            <DialogTrigger asChild>
+              <Button variant="secondary" className="bg-white/20 hover:bg-white/30 text-white border-white/30">
+                Ver Tutorial
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>Tutorial do Sistema</DialogTitle>
+                <DialogDescription>
+                  Aprenda a usar todas as funcionalidades do sistema de escalas
+                </DialogDescription>
+              </DialogHeader>
+              <TutorialContent />
+            </DialogContent>
+          </Dialog>
         </div>
 
         {/* Stats Cards */}
@@ -162,15 +251,15 @@ export const Dashboard = () => {
             <CardContent>
               <div className="space-y-4">
                 {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-start space-x-4 p-3 rounded-lg hover:bg-gray-50 transition-colors">
-                    <div className={`p-2 rounded-full bg-gray-100 ${activity.color}`}>
+                  <div key={activity.id} className="flex items-start space-x-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
+                    <div className={`p-2 rounded-full bg-muted ${activity.color}`}>
                       <activity.icon className="h-4 w-4" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900">
+                      <p className="text-sm font-medium">
                         {activity.title}
                       </p>
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-muted-foreground">
                         {activity.time} • {activity.user}
                       </p>
                     </div>
@@ -194,20 +283,20 @@ export const Dashboard = () => {
             <CardContent>
               <div className="space-y-4">
                 {upcomingScales.map((scale) => (
-                  <div key={scale.id} className="p-3 border border-gray-200 rounded-lg">
+                  <div key={scale.id} className="p-3 border rounded-lg">
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <h4 className="text-sm font-medium text-gray-900 mb-1">
+                        <h4 className="text-sm font-medium mb-1">
                           {scale.title}
                         </h4>
-                        <p className="text-xs text-gray-500 mb-2">
+                        <p className="text-xs text-muted-foreground mb-2">
                           {new Date(scale.date).toLocaleDateString('pt-BR')} • {scale.time}
                         </p>
                         <div className="flex items-center justify-between">
-                          <span className="text-xs px-2 py-1 bg-blue-100 text-blue-800 rounded-full">
+                          <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full">
                             {scale.department}
                           </span>
-                          <span className="text-xs text-gray-600">
+                          <span className="text-xs text-muted-foreground">
                             {scale.confirmed}/{scale.total} confirmados
                           </span>
                         </div>
@@ -216,7 +305,11 @@ export const Dashboard = () => {
                   </div>
                 ))}
               </div>
-              <Button variant="outline" className="w-full mt-4">
+              <Button 
+                variant="outline" 
+                className="w-full mt-4"
+                onClick={() => navigate('/scales')}
+              >
                 Ver Todas as Escalas
               </Button>
             </CardContent>
@@ -233,19 +326,35 @@ export const Dashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button variant="outline" className="h-20 flex-col">
+              <Button 
+                variant="outline" 
+                className="h-20 flex-col"
+                onClick={() => handleQuickAction('new-scale')}
+              >
                 <Calendar className="h-6 w-6 mb-2" />
                 Nova Escala
               </Button>
-              <Button variant="outline" className="h-20 flex-col">
+              <Button 
+                variant="outline" 
+                className="h-20 flex-col"
+                onClick={() => handleQuickAction('add-member')}
+              >
                 <Users className="h-6 w-6 mb-2" />
                 Adicionar Membro
               </Button>
-              <Button variant="outline" className="h-20 flex-col">
+              <Button 
+                variant="outline" 
+                className="h-20 flex-col"
+                onClick={() => handleQuickAction('add-song')}
+              >
                 <Music className="h-6 w-6 mb-2" />
                 Cadastrar Música
               </Button>
-              <Button variant="outline" className="h-20 flex-col">
+              <Button 
+                variant="outline" 
+                className="h-20 flex-col"
+                onClick={() => handleQuickAction('reports')}
+              >
                 <TrendingUp className="h-6 w-6 mb-2" />
                 Ver Relatórios
               </Button>

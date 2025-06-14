@@ -1,4 +1,5 @@
 
+
 export interface User {
   id: string;
   email: string;
@@ -170,6 +171,46 @@ export interface Invite {
   expiresAt: Date;
 }
 
+export interface Event {
+  id: string;
+  title: string;
+  description: string;
+  date: Date;
+  location: string;
+  churchId: string;
+  createdBy: string;
+  maxAttendees?: number; // undefined para ilimitado
+  isPublic: boolean; // se o evento é aberto ao público
+  status: 'draft' | 'published' | 'cancelled' | 'completed';
+  qrReaders: string[]; // emails das pessoas que podem ler QR codes
+  registrationDeadline?: Date;
+  tags: string[];
+  image?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface EventRegistration {
+  id: string;
+  eventId: string;
+  attendeeId: string; // pode ser userId ou guestId
+  attendeeType: 'member' | 'guest';
+  qrCode: string; // código único para o QR
+  registeredAt: Date;
+  checkedIn: boolean;
+  checkedInAt?: Date;
+  checkedInBy?: string; // email de quem fez o check-in
+}
+
+export interface EventGuest {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  document?: string; // CPF ou outro documento
+  createdAt: Date;
+}
+
 export interface AuthContextType {
   user: User | null;
   church: Church | null;
@@ -179,3 +220,4 @@ export interface AuthContextType {
   updateUser: (userData: Partial<User>) => Promise<void>;
   isLoading: boolean;
 }
+

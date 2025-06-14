@@ -1,4 +1,5 @@
 
+
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
@@ -13,13 +14,15 @@ import {
   LogOut,
   User,
   Building,
-  GraduationCap
+  GraduationCap,
+  CalendarDays
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEvents } from '@/contexts/EventContext';
 import { Button } from '@/components/ui/button';
 
-const navigation = [
+const baseNavigation = [
   { name: 'Dashboard', href: '/dashboard', icon: Home, roles: ['admin', 'leader', 'collaborator', 'member'] },
   { name: 'Escalas', href: '/scales', icon: Calendar, roles: ['admin', 'leader', 'collaborator', 'member'] },
   { name: 'Membros', href: '/members', icon: Users, roles: ['admin', 'leader'] },
@@ -35,10 +38,23 @@ export const Sidebar = () => {
   const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const { user, church, logout } = useAuth();
+  const { activeEvents } = useEvents();
 
   const handleLogout = () => {
     logout();
   };
+
+  // Adicionar eventos à navegação se houver eventos ativos ou se o usuário pode criar eventos
+  const canManageEvents = user?.role === 'admin' || user?.role === 'leader';
+  const shouldShowEvents = activeEvents.length > 0 || canManageEvents;
+
+  const navigation = shouldShowEvents 
+    ? [
+        ...baseNavigation.slice(0, 2), // Dashboard e Escalas
+        { name: 'Eventos', href: '/events', icon: CalendarDays, roles: ['admin', 'leader', 'collaborator', 'member'] },
+        ...baseNavigation.slice(2) // Resto dos itens
+      ]
+    : baseNavigation;
 
   const filteredNavigation = navigation.filter(item => 
     user && item.roles.includes(user.role)
@@ -129,3 +145,4 @@ export const Sidebar = () => {
     </div>
   );
 };
+

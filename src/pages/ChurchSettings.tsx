@@ -79,21 +79,33 @@ export const ChurchSettings = () => {
       name: 'Curso de Vocal', 
       description: 'Técnicas básicas de canto', 
       churchId: '1',
-      createdAt: new Date() 
+      modules: [],
+      tags: ['vocal', 'louvor'],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
     },
     { 
       id: '2', 
       name: 'Treinamento de Mídia', 
       description: 'Operação de equipamentos audiovisuais', 
       churchId: '1',
-      createdAt: new Date() 
+      modules: [],
+      tags: ['midia', 'equipamentos'],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
     },
     { 
       id: '3', 
       name: 'Liderança Ministerial', 
       description: 'Formação de líderes', 
       churchId: '1',
-      createdAt: new Date() 
+      modules: [],
+      tags: ['lideranca', 'ministerio'],
+      isActive: true,
+      createdAt: new Date(),
+      updatedAt: new Date()
     },
   ]);
 

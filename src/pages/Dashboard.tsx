@@ -1,4 +1,3 @@
-
 import { 
   Users, 
   Calendar, 
@@ -15,46 +14,167 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+
+// Mock data for calculations
+const mockMembers = [
+  { id: '1', name: 'Pastor João', role: 'admin', departmentId: '1' },
+  { id: '2', name: 'Ana Karolina', role: 'leader', departmentId: '1' },
+  { id: '3', name: 'Yuri Adriel', role: 'collaborator', departmentId: '1' },
+  { id: '4', name: 'Maria Silva', role: 'member', departmentId: '1' },
+  { id: '5', name: 'João Pedro', role: 'collaborator', departmentId: '2' },
+  { id: '6', name: 'Arthur', role: 'collaborator', departmentId: '1' },
+  { id: '7', name: 'Carlos Santos', role: 'member', departmentId: '1' },
+  { id: '8', name: 'Pedro Costa', role: 'collaborator', departmentId: '1' },
+  { id: '9', name: 'Juliana', role: 'member', departmentId: '1' },
+  { id: '10', name: 'Alexandre', role: 'leader', departmentId: '2' },
+];
+
+const mockScales = [
+  {
+    id: '1',
+    title: 'Culto Domingo Manhã',
+    date: new Date('2024-12-15'),
+    status: 'published',
+    totalMembers: 6,
+    confirmedMembers: 4,
+  },
+  {
+    id: '2',
+    title: 'Reunião de Oração',
+    date: new Date('2024-12-17'),
+    status: 'published',
+    totalMembers: 4,
+    confirmedMembers: 3,
+  },
+  {
+    id: '3',
+    title: 'Culto Domingo Noite',
+    date: new Date('2024-12-15'),
+    status: 'published',
+    totalMembers: 3,
+    confirmedMembers: 3,
+  },
+  {
+    id: '4',
+    title: 'Ensaio Geral',
+    date: new Date('2024-12-20'),
+    status: 'draft',
+    totalMembers: 8,
+    confirmedMembers: 5,
+  },
+];
+
+const mockSongs = [
+  { id: '1', title: 'Eu Creio em Ti', artist: 'Hillsong' },
+  { id: '2', title: 'Pra Te Adorar Eu Vivo', artist: 'Diante do Trono' },
+  { id: '3', title: 'Eu Vou Construir', artist: 'Pat Barrett' },
+  { id: '4', title: 'Cornerstone', artist: 'Hillsong' },
+  { id: '5', title: 'Reckless Love', artist: 'Cory Asbury' },
+  { id: '6', title: 'Oceans', artist: 'Hillsong United' },
+  { id: '7', title: 'Way Maker', artist: 'Sinach' },
+  { id: '8', title: 'Goodness of God', artist: 'Bethel Music' },
+];
 
 export const Dashboard = () => {
   const { user, church } = useAuth();
   const navigate = useNavigate();
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
-  const statsData = [
+  // Calculate real stats
+  const stats = useMemo(() => {
+    const activeScales = mockScales.filter(scale => scale.status === 'published');
+    const totalInvited = activeScales.reduce((sum, scale) => sum + scale.totalMembers, 0);
+    const totalConfirmed = activeScales.reduce((sum, scale) => sum + scale.confirmedMembers, 0);
+    const participationRate = totalInvited > 0 ? Math.round((totalConfirmed / totalInvited) * 100) : 0;
+
+    return {
+      totalMembers: mockMembers.length,
+      activeScales: activeScales.length,
+      totalSongs: mockSongs.length,
+      participationRate: `${participationRate}%`,
+    };
+  }, []);
+
+  // Define which stats to show based on user role
+  const getStatsForUser = () => {
+    const canViewMemberStats = user?.role === 'admin' || user?.role === 'leader';
+    
+    const allStats = [
+      {
+        title: "Total de Membros",
+        value: stats.totalMembers,
+        change: "+2 este mês",
+        changeType: "positive" as const,
+        icon: Users,
+        gradient: "from-blue-500 to-blue-600",
+        showFor: ['admin', 'leader']
+      },
+      {
+        title: "Escalas Ativas",
+        value: stats.activeScales,
+        change: `${mockScales.filter(s => s.status === 'draft').length} rascunhos`,
+        changeType: "neutral" as const,
+        icon: Calendar,
+        gradient: "from-green-500 to-green-600",
+        showFor: ['admin', 'leader', 'collaborator', 'member']
+      },
+      {
+        title: "Músicas Cadastradas",
+        value: stats.totalSongs,
+        change: "+2 esta semana",
+        changeType: "positive" as const,
+        icon: Music,
+        gradient: "from-purple-500 to-purple-600",
+        showFor: ['admin', 'leader', 'collaborator', 'member']
+      },
+      {
+        title: "Taxa de Participação",
+        value: stats.participationRate,
+        change: "+3% vs mês anterior",
+        changeType: "positive" as const,
+        icon: TrendingUp,
+        gradient: "from-orange-500 to-orange-600",
+        showFor: ['admin', 'leader']
+      }
+    ];
+
+    return allStats.filter(stat => 
+      user && stat.showFor.includes(user.role)
+    );
+  };
+
+  const statsData = getStatsForUser();
+
+  // Dados das próximas escalas com datas mais realistas
+  const upcomingScales = [
     {
-      title: "Total de Membros",
-      value: 156,
-      change: "+12% este mês",
-      changeType: "positive" as const,
-      icon: Users,
-      gradient: "from-blue-500 to-blue-600"
+      id: 1,
+      title: "Culto Domingo Manhã",
+      date: "2024-12-15",
+      time: "09:00",
+      department: "Louvor",
+      confirmed: 4,
+      total: 6
     },
     {
-      title: "Escalas Ativas",
-      value: 8,
-      change: "4 próximas",
-      changeType: "neutral" as const,
-      icon: Calendar,
-      gradient: "from-green-500 to-green-600"
+      id: 2,
+      title: "Reunião de Oração",
+      date: "2024-12-17",
+      time: "19:30",
+      department: "Louvor",
+      confirmed: 3,
+      total: 4
     },
     {
-      title: "Músicas Cadastradas",
-      value: 342,
-      change: "+28 esta semana",
-      changeType: "positive" as const,
-      icon: Music,
-      gradient: "from-purple-500 to-purple-600"
-    },
-    {
-      title: "Taxa de Participação",
-      value: "92%",
-      change: "+5% vs mês anterior",
-      changeType: "positive" as const,
-      icon: TrendingUp,
-      gradient: "from-orange-500 to-orange-600"
+      id: 3,
+      title: "Culto Domingo Noite",
+      date: "2024-12-15",
+      time: "19:00",
+      department: "Mídia",
+      confirmed: 2,
+      total: 3
     }
   ];
 
@@ -94,37 +214,6 @@ export const Dashboard = () => {
       user: "Sistema",
       icon: AlertCircle,
       color: "text-orange-600"
-    }
-  ];
-
-  // Dados das próximas escalas com datas mais realistas
-  const upcomingScales = [
-    {
-      id: 1,
-      title: "Culto Domingo Manhã",
-      date: "2024-12-15",
-      time: "09:00",
-      department: "Louvor",
-      confirmed: 4,
-      total: 6
-    },
-    {
-      id: 2,
-      title: "Reunião de Oração",
-      date: "2024-12-17",
-      time: "19:30",
-      department: "Louvor",
-      confirmed: 3,
-      total: 4
-    },
-    {
-      id: 3,
-      title: "Culto Domingo Noite",
-      date: "2024-12-15",
-      time: "19:00",
-      department: "Mídia",
-      confirmed: 2,
-      total: 3
     }
   ];
 
@@ -229,7 +318,7 @@ export const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className={`grid grid-cols-1 gap-6 ${statsData.length === 4 ? 'md:grid-cols-2 lg:grid-cols-4' : statsData.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
           {statsData.map((stat, index) => (
             <StatsCard key={index} {...stat} />
           ))}

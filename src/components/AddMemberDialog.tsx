@@ -16,6 +16,12 @@ const availableSkills = [
 
 const departments = ['Louvor', 'Mídia', 'Ministração', 'Recepção', 'Palavra', 'Oração'];
 
+const experienceOptions = [
+  { value: 'beginner', label: 'Iniciante', level: 3 },
+  { value: 'intermediate', label: 'Intermediário', level: 6 },
+  { value: 'advanced', label: 'Avançado', level: 8 }
+];
+
 interface AddMemberDialogProps {
   trigger: React.ReactNode;
   onAdd: (member: any) => void;
@@ -28,7 +34,7 @@ export const AddMemberDialog = ({ trigger, onAdd }: AddMemberDialogProps) => {
     email: '',
     phone: '',
     role: 'member',
-    department: '',
+    departments: [] as string[],
     experience: 'beginner',
     skills: [] as string[]
   });
@@ -41,7 +47,7 @@ export const AddMemberDialog = ({ trigger, onAdd }: AddMemberDialogProps) => {
       email: '',
       phone: '',
       role: 'member',
-      department: '',
+      departments: [],
       experience: 'beginner',
       skills: []
     });
@@ -63,12 +69,33 @@ export const AddMemberDialog = ({ trigger, onAdd }: AddMemberDialogProps) => {
     }));
   };
 
+  const addDepartment = (department: string) => {
+    if (!formData.departments.includes(department)) {
+      setFormData(prev => ({
+        ...prev,
+        departments: [...prev.departments, department]
+      }));
+    }
+  };
+
+  const removeDepartment = (department: string) => {
+    setFormData(prev => ({
+      ...prev,
+      departments: prev.departments.filter(d => d !== department)
+    }));
+  };
+
+  const getExperienceLevel = (value: string) => {
+    const option = experienceOptions.find(opt => opt.value === value);
+    return option ? option.level : 3;
+  };
+
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent className="max-w-2xl">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Adicionar Novo Membro</DialogTitle>
         </DialogHeader>
@@ -123,32 +150,58 @@ export const AddMemberDialog = ({ trigger, onAdd }: AddMemberDialogProps) => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="department">Departamento</Label>
-                  <Select value={formData.department} onValueChange={(value) => setFormData(prev => ({ ...prev, department: value }))}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione o departamento" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {departments.map(dept => (
+              <div>
+                <Label>Departamentos</Label>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  {formData.departments.map(dept => (
+                    <Badge key={dept} variant="default" className="flex items-center gap-1">
+                      {dept}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-4 w-4 p-0 hover:bg-transparent"
+                        onClick={() => removeDepartment(dept)}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </Badge>
+                  ))}
+                </div>
+                <Select value="" onValueChange={addDepartment}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Adicionar departamento" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {departments
+                      .filter(dept => !formData.departments.includes(dept))
+                      .map(dept => (
                         <SelectItem key={dept} value={dept}>{dept}</SelectItem>
                       ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="experience">Experiência</Label>
-                  <Select value={formData.experience} onValueChange={(value) => setFormData(prev => ({ ...prev, experience: value }))}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="beginner">Iniciante</SelectItem>
-                      <SelectItem value="intermediate">Intermediário</SelectItem>
-                      <SelectItem value="advanced">Avançado</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
+                <Label htmlFor="experience">Nível de Experiência</Label>
+                <Select value={formData.experience} onValueChange={(value) => setFormData(prev => ({ ...prev, experience: value }))}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {experienceOptions.map(option => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label} (Nível {option.level})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <div className="mt-2">
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${getExperienceLevel(formData.experience) * 10}%` }}
+                    />
+                  </div>
                 </div>
               </div>
 

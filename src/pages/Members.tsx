@@ -7,11 +7,15 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UserPlus, Search, Phone, Mail } from 'lucide-react';
+import { UserPlus, Search, Phone, Mail, Edit, History } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { AddMemberDialog } from '@/components/AddMemberDialog';
+import { EditMemberDialog } from '@/components/EditMemberDialog';
+import { MemberHistoryDialog } from '@/components/MemberHistoryDialog';
+import { useToast } from '@/hooks/use-toast';
 
 // Mock data
-const mockMembers = [
+const initialMembers = [
   {
     id: '1',
     name: 'Ana Karolina Silva',
@@ -19,7 +23,8 @@ const mockMembers = [
     phone: '(11) 99999-1111',
     avatar: '/placeholder.svg',
     departments: ['Louvor'],
-    role: 'Vocal Principal',
+    role: 'collaborator',
+    skills: ['Vocal Principal', 'Vocal'],
     experience: 9,
     joinedAt: new Date('2023-01-15'),
     lastActive: new Date(),
@@ -31,7 +36,8 @@ const mockMembers = [
     phone: '(11) 99999-2222',
     avatar: '/placeholder.svg',
     departments: ['Louvor'],
-    role: 'Guitarrista',
+    role: 'collaborator',
+    skills: ['Guitarra', 'Violão'],
     experience: 8,
     joinedAt: new Date('2023-03-20'),
     lastActive: new Date(),
@@ -43,7 +49,8 @@ const mockMembers = [
     phone: '(11) 99999-3333',
     avatar: '/placeholder.svg',
     departments: ['Louvor'],
-    role: 'Baterista',
+    role: 'member',
+    skills: ['Bateria', 'Cajon'],
     experience: 7,
     joinedAt: new Date('2023-05-10'),
     lastActive: new Date(),
@@ -55,7 +62,8 @@ const mockMembers = [
     phone: '(11) 99999-4444',
     avatar: '/placeholder.svg',
     departments: ['Mídia'],
-    role: 'Projeção',
+    role: 'member',
+    skills: ['Projeção', 'Fotografia'],
     experience: 6,
     joinedAt: new Date('2023-07-05'),
     lastActive: new Date(),
@@ -66,8 +74,9 @@ const mockMembers = [
     email: 'alex@igreja.com',
     phone: '(11) 99999-5555',
     avatar: '/placeholder.svg',
-    departments: ['Mídia'],
-    role: 'Sonoplastia',
+    departments: ['Mídia', 'Louvor'],
+    role: 'leader',
+    skills: ['Sonoplastia', 'Teclado'],
     experience: 8,
     joinedAt: new Date('2023-02-12'),
     lastActive: new Date(),
@@ -90,10 +99,12 @@ const experienceLabels = {
 
 export const Members = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
+  const [members, setMembers] = useState(initialMembers);
 
-  const filteredMembers = mockMembers.filter(member => {
+  const filteredMembers = members.filter(member => {
     const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          member.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = departmentFilter === 'all' || 
@@ -103,6 +114,49 @@ export const Members = () => {
   });
 
   const canEditMembers = user?.role === 'admin' || user?.role === 'leader';
+
+  const handleAddMember = (memberData: any) => {
+    const newMember = {
+      ...memberData,
+      id: Date.now().toString(),
+      avatar: '/placeholder.svg',
+      departments: memberData.department ? [memberData.department] : [],
+      experience: memberData.experience === 'beginner' ? 3 : 
+                  memberData.experience === 'intermediate' ? 6 : 8,
+      joinedAt: new Date(),
+      lastActive: new Date(),
+    };
+
+    setMembers(prev => [...prev, newMember]);
+    toast({
+      title: "Membro Adicionado",
+      description: `${memberData.name} foi adicionado com sucesso.`,
+    });
+  };
+
+  const handleEditMember = (updatedMember: any) => {
+    setMembers(prev => prev.map(member => 
+      member.id === updatedMember.id ? {
+        ...updatedMember,
+        departments: updatedMember.department ? [updatedMember.department] : updatedMember.departments,
+        experience: updatedMember.experience === 'beginner' ? 3 : 
+                   updatedMember.experience === 'intermediate' ? 6 : 8,
+      } : member
+    ));
+    toast({
+      title: "Membro Atualizado",
+      description: `Os dados de ${updatedMember.name} foram atualizados.`,
+    });
+  };
+
+  const getRoleDisplay = (role: string) => {
+    const roleMap = {
+      member: 'Membro',
+      collaborator: 'Colaborador',
+      leader: 'Líder'
+    };
+    return roleMap[role as keyof typeof roleMap] || role;
+  };
 
   return (
     <DashboardLayout title="Membros">
@@ -114,10 +168,15 @@ export const Members = () => {
             <p className="text-gray-600">Gerencie os membros e suas funções nos ministérios</p>
           </div>
           {canEditMembers && (
-            <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Adicionar Membro
-            </Button>
+            <AddMemberDialog
+              trigger={
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Adicionar Membro
+                </Button>
+              }
+              onAdd={handleAddMember}
+            />
           )}
         </div>
 
@@ -142,8 +201,10 @@ export const Members = () => {
                   <SelectItem value="all">Todos os Departamentos</SelectItem>
                   <SelectItem value="Louvor">Louvor</SelectItem>
                   <SelectItem value="Mídia">Mídia</SelectItem>
-                  <SelectItem value="Sonoplastia">Sonoplastia</SelectItem>
-                  <SelectItem value="Instrumentos">Instrumentos</SelectItem>
+                  <SelectItem value="Ministração">Ministração</SelectItem>
+                  <SelectItem value="Recepção">Recepção</SelectItem>
+                  <SelectItem value="Palavra">Palavra</SelectItem>
+                  <SelectItem value="Oração">Oração</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -154,14 +215,14 @@ export const Members = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-blue-600">{mockMembers.length}</div>
+              <div className="text-2xl font-bold text-blue-600">{members.length}</div>
               <p className="text-sm text-gray-600">Total de Membros</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-green-600">
-                {mockMembers.filter(m => m.departments.includes('Louvor')).length}
+                {members.filter(m => m.departments.includes('Louvor')).length}
               </div>
               <p className="text-sm text-gray-600">Ministério de Louvor</p>
             </CardContent>
@@ -169,7 +230,7 @@ export const Members = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-purple-600">
-                {mockMembers.filter(m => m.departments.includes('Mídia')).length}
+                {members.filter(m => m.departments.includes('Mídia')).length}
               </div>
               <p className="text-sm text-gray-600">Ministério de Mídia</p>
             </CardContent>
@@ -177,7 +238,7 @@ export const Members = () => {
           <Card>
             <CardContent className="p-4">
               <div className="text-2xl font-bold text-orange-600">
-                {mockMembers.filter(m => m.experience >= 7).length}
+                {members.filter(m => m.experience >= 7).length}
               </div>
               <p className="text-sm text-gray-600">Membros Experientes</p>
             </CardContent>
@@ -199,7 +260,7 @@ export const Members = () => {
                     </Avatar>
                     <div>
                       <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                      <p className="text-sm text-gray-600">{member.role}</p>
+                      <p className="text-sm text-gray-600">{getRoleDisplay(member.role)}</p>
                     </div>
                   </div>
                 </div>
@@ -221,6 +282,21 @@ export const Members = () => {
                     </Badge>
                   ))}
                 </div>
+
+                {member.skills && member.skills.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {member.skills.slice(0, 3).map((skill) => (
+                      <Badge key={skill} variant="outline" className="text-xs">
+                        {skill}
+                      </Badge>
+                    ))}
+                    {member.skills.length > 3 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{member.skills.length - 3}
+                      </Badge>
+                    )}
+                  </div>
+                )}
                 
                 <div className="space-y-2">
                   <div className="flex justify-between text-sm">
@@ -239,12 +315,25 @@ export const Members = () => {
 
                 {canEditMembers && (
                   <div className="flex space-x-2 pt-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      Editar
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
-                      Histórico
-                    </Button>
+                    <EditMemberDialog
+                      trigger={
+                        <Button variant="outline" size="sm" className="flex-1">
+                          <Edit className="h-4 w-4 mr-1" />
+                          Editar
+                        </Button>
+                      }
+                      member={member}
+                      onEdit={handleEditMember}
+                    />
+                    <MemberHistoryDialog
+                      trigger={
+                        <Button variant="outline" size="sm" className="flex-1">
+                          <History className="h-4 w-4 mr-1" />
+                          Histórico
+                        </Button>
+                      }
+                      member={member}
+                    />
                   </div>
                 )}
               </CardContent>

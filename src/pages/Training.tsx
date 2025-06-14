@@ -6,17 +6,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { BookOpen, Clock, Users, Search, Filter, Star, Play, Plus } from 'lucide-react';
+import { BookOpen, Clock, Users, Search, Filter, Star, Play, Plus, Edit } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddCourseDialog } from '@/components/AddCourseDialog';
 import { CourseDetailsModal } from '@/components/CourseDetailsModal';
-import { Course, Department } from '@/types';
+import { EditCourseDialog } from '@/components/EditCourseDialog';
+import { Course, Department, UserCourseProgress } from '@/types';
 
 export const Training = () => {
   const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
+  const [editingCourse, setEditingCourse] = useState<Course | null>(null);
   const [showCourseDetails, setShowCourseDetails] = useState(false);
+  const [showEditCourse, setShowEditCourse] = useState(false);
 
   // Mock departments
   const [departments] = useState<Department[]>([
@@ -38,6 +41,9 @@ export const Training = () => {
       createdAt: new Date() 
     },
   ]);
+
+  // Mock user enrollments
+  const [enrollments, setEnrollments] = useState<UserCourseProgress[]>([]);
 
   // Mock courses with modules and lessons
   const [courses, setCourses] = useState<Course[]>([
@@ -165,6 +171,12 @@ export const Training = () => {
     });
   };
 
+  const getEnrolledCourses = () => {
+    if (!user) return [];
+    const userEnrollments = enrollments.filter(e => e.userId === user.id);
+    return courses.filter(course => userEnrollments.some(e => e.courseId === course.id));
+  };
+
   const filteredCourses = getAvailableCourses().filter(course =>
     course.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     course.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -188,9 +200,54 @@ export const Training = () => {
     setCourses([...courses, newCourse]);
   };
 
+  const handleEditCourse = (course: Course) => {
+    setEditingCourse(course);
+    setShowEditCourse(true);
+  };
+
+  const handleSaveCourse = (updatedCourse: Course) => {
+    setCourses(courses.map(course => 
+      course.id === updatedCourse.id ? updatedCourse : course
+    ));
+  };
+
   const handleCourseClick = (course: Course) => {
     setSelectedCourse(course);
     setShowCourseDetails(true);
+  };
+
+  const handleEnrollInCourse = (course: Course) => {
+    if (!user) return;
+    
+    const newEnrollment: UserCourseProgress = {
+      id: Date.now().toString(),
+      userId: user.id,
+      courseId: course.id,
+      enrolledAt: new Date(),
+      progress: 0,
+      completedLessons: []
+    };
+    
+    setEnrollments([...enrollments, newEnrollment]);
+    setShowCourseDetails(false);
+  };
+
+  const isUserEnrolled = (courseId: string) => {
+    if (!user) return false;
+    return enrollments.some(e => e.userId === user.id && e.courseId === courseId);
+  };
+
+  const getUserProgress = (courseId: string) => {
+    if (!user) return 0;
+    const enrollment = enrollments.find(e => e.userId === user.id && e.courseId === courseId);
+    return enrollment?.progress || 0;
+  };
+
+  const canEditCourse = (course: Course) => {
+    if (!user) return false;
+    return user.role === 'admin' || 
+           user.role === 'leader' || 
+           course.instructorId === user.id;
   };
 
   return (
@@ -238,7 +295,7 @@ export const Training = () => {
         <Tabs defaultValue="available" className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="available">Cursos Disponíveis</TabsTrigger>
-            <TabsTrigger value="enrolled">Meus Cursos</TabsTrigger>
+            <TabsTrigger value="enrolled">Meus Cursos ({getEnrolledCourses().length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="available" className="space-y-4">
@@ -262,15 +319,23 @@ export const Training = () => {
                     acc + module.lessons.reduce((lessonAcc, lesson) => lessonAcc + (lesson.duration || 0), 0), 0
                   );
                   const department = departments.find(d => d.id === course.departmentId);
+                  const isEnrolled = isUserEnrolled(course.id);
 
                   return (
-                    <Card key={course.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleCourseClick(course)}>
+                    <Card key={course.id} className="hover:shadow-lg transition-shadow">
                       <CardHeader className="pb-3">
                         <div className="flex justify-between items-start mb-2">
                           <CardTitle className="text-lg line-clamp-2">{course.name}</CardTitle>
-                          <Badge variant="secondary" className="text-xs">
-                            {department?.name || 'Geral'}
-                          </Badge>
+                          <div className="flex gap-1">
+                            {isEnrolled && (
+                              <Badge variant="default" className="text-xs">
+                                Inscrito
+                              </Badge>
+                            )}
+                            <Badge variant="outline" className="text-xs">
+                              {department?.name || 'Geral'}
+                            </Badge>
+                          </div>
                         </div>
                         <CardDescription className="line-clamp-2">
                           {course.description}
@@ -280,6 +345,10 @@ export const Training = () => {
                         <div className="flex justify-between text-sm text-gray-600 mb-4">
                           <div className="flex items-center">
                             <BookOpen className="h-4 w-4 mr-1" />
+                            {course.modules.length} módulos
+                          </div>
+                          <div className="flex items-center">
+                            <Users className="h-4 w-4 mr-1" />
                             {totalLessons} aulas
                           </div>
                           <div className="flex items-center">
@@ -301,10 +370,25 @@ export const Training = () => {
                           )}
                         </div>
 
-                        <Button className="w-full" size="sm">
-                          <Play className="h-4 w-4 mr-2" />
-                          Ver Detalhes
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            className="flex-1" 
+                            size="sm"
+                            onClick={() => handleCourseClick(course)}
+                          >
+                            <Play className="h-4 w-4 mr-2" />
+                            Ver Detalhes
+                          </Button>
+                          {canEditCourse(course) && (
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => handleEditCourse(course)}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   );
@@ -314,17 +398,80 @@ export const Training = () => {
           </TabsContent>
 
           <TabsContent value="enrolled" className="space-y-4">
-            <Card>
-              <CardContent className="text-center py-12">
-                <Star className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Nenhum curso inscrito
-                </h3>
-                <p className="text-gray-600">
-                  Inscreva-se em cursos para começar seu aprendizado.
-                </p>
-              </CardContent>
-            </Card>
+            {getEnrolledCourses().length === 0 ? (
+              <Card>
+                <CardContent className="text-center py-12">
+                  <Star className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                    Nenhum curso inscrito
+                  </h3>
+                  <p className="text-gray-600">
+                    Inscreva-se em cursos para começar seu aprendizado.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                {getEnrolledCourses().map((course) => {
+                  const totalLessons = course.modules.reduce((acc, module) => acc + module.lessons.length, 0);
+                  const totalDuration = course.modules.reduce((acc, module) => 
+                    acc + module.lessons.reduce((lessonAcc, lesson) => lessonAcc + (lesson.duration || 0), 0), 0
+                  );
+                  const department = departments.find(d => d.id === course.departmentId);
+                  const progress = getUserProgress(course.id);
+
+                  return (
+                    <Card key={course.id} className="hover:shadow-lg transition-shadow cursor-pointer" onClick={() => handleCourseClick(course)}>
+                      <CardHeader className="pb-3">
+                        <div className="flex justify-between items-start mb-2">
+                          <CardTitle className="text-lg line-clamp-2">{course.name}</CardTitle>
+                          <Badge variant="outline" className="text-xs">
+                            {department?.name || 'Geral'}
+                          </Badge>
+                        </div>
+                        <CardDescription className="line-clamp-2">
+                          {course.description}
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="flex justify-between text-sm text-gray-600 mb-4">
+                          <div className="flex items-center">
+                            <BookOpen className="h-4 w-4 mr-1" />
+                            {course.modules.length} módulos
+                          </div>
+                          <div className="flex items-center">
+                            <Users className="h-4 w-4 mr-1" />
+                            {totalLessons} aulas
+                          </div>
+                          <div className="flex items-center">
+                            <Clock className="h-4 w-4 mr-1" />
+                            {Math.round(totalDuration / 60)}h
+                          </div>
+                        </div>
+                        
+                        <div className="mb-4">
+                          <div className="flex justify-between text-sm mb-1">
+                            <span>Progresso</span>
+                            <span>{progress}%</span>
+                          </div>
+                          <div className="w-full bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full" 
+                              style={{ width: `${progress}%` }}
+                            ></div>
+                          </div>
+                        </div>
+
+                        <Button className="w-full" size="sm">
+                          <Play className="h-4 w-4 mr-2" />
+                          Continuar
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </div>
@@ -333,10 +480,16 @@ export const Training = () => {
         course={selectedCourse}
         open={showCourseDetails}
         onOpenChange={setShowCourseDetails}
-        onEnroll={() => {
-          // Implementar lógica de inscrição
-          console.log('Inscrevendo no curso:', selectedCourse?.name);
-        }}
+        isEnrolled={selectedCourse ? isUserEnrolled(selectedCourse.id) : false}
+        progress={selectedCourse ? getUserProgress(selectedCourse.id) : 0}
+        onEnroll={() => selectedCourse && handleEnrollInCourse(selectedCourse)}
+      />
+
+      <EditCourseDialog
+        course={editingCourse}
+        open={showEditCourse}
+        onOpenChange={setShowEditCourse}
+        onSave={handleSaveCourse}
       />
     </DashboardLayout>
   );

@@ -287,6 +287,9 @@ export const Dashboard = () => {
     </div>
   );
 
+  // Check if user can see quick actions
+  const canViewQuickActions = user?.role === 'admin' || user?.role === 'leader';
+
   return (
     <DashboardLayout title="Dashboard">
       <div className="space-y-6">
@@ -405,51 +408,53 @@ export const Dashboard = () => {
           </Card>
         </div>
 
-        {/* Quick Actions */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Ações Rápidas</CardTitle>
-            <CardDescription>
-              Acesso rápido às funcionalidades mais utilizadas
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <Button 
-                variant="outline" 
-                className="h-20 flex-col"
-                onClick={() => handleQuickAction('new-scale')}
-              >
-                <Calendar className="h-6 w-6 mb-2" />
-                Nova Escala
-              </Button>
-              <Button 
-                variant="outline" 
-                className="h-20 flex-col"
-                onClick={() => handleQuickAction('add-member')}
-              >
-                <Users className="h-6 w-6 mb-2" />
-                Adicionar Membro
-              </Button>
-              <Button 
-                variant="outline" 
-                className="h-20 flex-col"
-                onClick={() => handleQuickAction('add-song')}
-              >
-                <Music className="h-6 w-6 mb-2" />
-                Cadastrar Música
-              </Button>
-              <Button 
-                variant="outline" 
-                className="h-20 flex-col"
-                onClick={() => handleQuickAction('reports')}
-              >
-                <TrendingUp className="h-6 w-6 mb-2" />
-                Ver Relatórios
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Quick Actions - Only for admin and leader */}
+        {canViewQuickActions && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Ações Rápidas</CardTitle>
+              <CardDescription>
+                Acesso rápido às funcionalidades mais utilizadas
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex-col"
+                  onClick={() => handleQuickAction('new-scale')}
+                >
+                  <Calendar className="h-6 w-6 mb-2" />
+                  Nova Escala
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex-col"
+                  onClick={() => handleQuickAction('add-member')}
+                >
+                  <Users className="h-6 w-6 mb-2" />
+                  Adicionar Membro
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex-col"
+                  onClick={() => handleQuickAction('add-song')}
+                >
+                  <Music className="h-6 w-6 mb-2" />
+                  Cadastrar Música
+                </Button>
+                <Button 
+                  variant="outline" 
+                  className="h-20 flex-col"
+                  onClick={() => handleQuickAction('reports')}
+                >
+                  <TrendingUp className="h-6 w-6 mb-2" />
+                  Ver Relatórios
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );

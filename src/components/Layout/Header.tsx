@@ -1,8 +1,8 @@
 
-import { Bell, Search } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { Search } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
+import { NotificationDropdown } from '@/components/NotificationDropdown';
 
 interface HeaderProps {
   title: string;
@@ -13,11 +13,11 @@ export const Header = ({ title, showSearch = true }: HeaderProps) => {
   const { user } = useAuth();
 
   return (
-    <header className="bg-white border-b border-gray-200 px-6 py-4">
+    <header className="bg-white dark:bg-gray-950 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">{title}</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{title}</h1>
+          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
             Bem-vindo de volta, {user?.name}!
           </p>
         </div>
@@ -33,12 +33,7 @@ export const Header = ({ title, showSearch = true }: HeaderProps) => {
             </div>
           )}
           
-          <Button variant="ghost" size="sm" className="relative">
-            <Bell className="h-5 w-5" />
-            <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-              3
-            </span>
-          </Button>
+          <NotificationDropdown />
         </div>
       </div>
     </header>

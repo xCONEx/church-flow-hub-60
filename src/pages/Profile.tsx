@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Camera, User, Settings, Shield, Bell } from 'lucide-react';
+import { Camera, User, Settings, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 
@@ -51,7 +51,7 @@ export const Profile = () => {
         </div>
 
         <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="profile" className="flex items-center space-x-2">
               <User className="h-4 w-4" />
               <span>Perfil</span>
@@ -59,10 +59,6 @@ export const Profile = () => {
             <TabsTrigger value="security" className="flex items-center space-x-2">
               <Shield className="h-4 w-4" />
               <span>Segurança</span>
-            </TabsTrigger>
-            <TabsTrigger value="notifications" className="flex items-center space-x-2">
-              <Bell className="h-4 w-4" />
-              <span>Notificações</span>
             </TabsTrigger>
           </TabsList>
 
@@ -175,20 +171,6 @@ export const Profile = () => {
                   <Input id="confirm-password" type="password" />
                 </div>
                 <Button>Alterar Senha</Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="notifications" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Notificações</CardTitle>
-                <CardDescription>
-                  Configure como você quer receber notificações
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <p className="text-gray-500">Configurações de notificação em breve...</p>
               </CardContent>
             </Card>
           </TabsContent>

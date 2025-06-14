@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Music, Search, Plus, ExternalLink, FileText, Send } from 'lucide-react';
+import { Music, Search, Plus, ExternalLink, FileText } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddSongDialog } from '@/components/AddSongDialog';
 import { EditSongDialog } from '@/components/EditSongDialog';
@@ -120,13 +120,6 @@ export const Repertoire = () => {
     ));
   };
 
-  const handleSendInvite = () => {
-    toast({
-      title: "Convite Enviado",
-      description: "Convite para colaborar no repertório foi enviado com sucesso!"
-    });
-  };
-
   return (
     <DashboardLayout title="Repertório">
       <div className="space-y-6">
@@ -136,27 +129,17 @@ export const Repertoire = () => {
             <h2 className="text-2xl font-bold text-gray-900">Repertório Musical</h2>
             <p className="text-gray-600">Gerencie as músicas disponíveis para as escalas</p>
           </div>
-          <div className="flex gap-2">
-            <Button 
-              variant="outline" 
-              onClick={handleSendInvite}
-              className="border-blue-500 text-blue-500 hover:bg-blue-50"
-            >
-              <Send className="h-4 w-4 mr-2" />
-              Enviar Convite
-            </Button>
-            {canEditRepertoire && (
-              <AddSongDialog
-                trigger={
-                  <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Adicionar Música
-                  </Button>
-                }
-                onSongAdded={handleSongAdded}
-              />
-            )}
-          </div>
+          {canEditRepertoire && (
+            <AddSongDialog
+              trigger={
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Música
+                </Button>
+              }
+              onSongAdded={handleSongAdded}
+            />
+          )}
         </div>
 
         {/* Filters */}

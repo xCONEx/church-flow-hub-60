@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,6 +7,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserPlus, Search, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useToast } from '@/hooks/use-toast';
+import { SendInviteDialog } from '@/components/SendInviteDialog';
 
 // Mock data
 const mockInvites = [
@@ -102,6 +103,7 @@ const roleLabels = {
 
 export const Invites = () => {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -123,6 +125,13 @@ export const Invites = () => {
     expired: mockInvites.filter(i => i.status === 'expired').length,
   };
 
+  const handleInviteSent = (inviteData: any) => {
+    toast({
+      title: "Convite Enviado",
+      description: `Convite enviado para ${inviteData.email} com sucesso!`
+    });
+  };
+
   return (
     <DashboardLayout title="Convites">
       <div className="space-y-6">
@@ -133,10 +142,15 @@ export const Invites = () => {
             <p className="text-gray-600">Gerencie convites para novos membros da equipe</p>
           </div>
           {canInvite && (
-            <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
-              <UserPlus className="h-4 w-4 mr-2" />
-              Enviar Convite
-            </Button>
+            <SendInviteDialog
+              trigger={
+                <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Enviar Convite
+                </Button>
+              }
+              onInviteSent={handleInviteSent}
+            />
           )}
         </div>
 

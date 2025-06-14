@@ -44,11 +44,87 @@ const mockMembers = [
 ];
 
 const mockSongs = [
-  { id: '1', title: 'Eu Creio em Ti', artist: 'Hillsong', originalKey: 'G', bpm: 120, category: 'Adoração' },
-  { id: '2', title: 'Pra Te Adorar Eu Vivo', artist: 'Diante do Trono', originalKey: 'C', bpm: 85, category: 'Adoração' },
-  { id: '3', title: 'Eu Vou Construir', artist: 'Toque no Altar', originalKey: 'F', bpm: 130, category: 'Celebração' },
-  { id: '4', title: 'Rei do Meu Coração', artist: 'Ministério Zoe', originalKey: 'A', bpm: 95, category: 'Adoração' },
-  { id: '5', title: 'Cornerstone', artist: 'Hillsong', originalKey: 'D', bpm: 105, category: 'Adoração' }
+  { 
+    id: '1', 
+    title: 'Eu Creio em Ti', 
+    artist: 'Hillsong', 
+    originalKey: 'G', 
+    bpm: 120, 
+    category: 'Adoração',
+    lyrics: 'Verso 1:\nEu creio em Ti\nEu creio em Teu amor\nQue nunca falhará\n\nRefrão:\nTu és fiel, Senhor\nTu és fiel, Senhor\nEu descanso em Ti\nTu és fiel',
+    youtubeLinks: [
+      { id: 1, title: 'Versão Original', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' },
+      { id: 2, title: 'Acústico', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
+    ],
+    documents: [
+      { id: 1, title: 'Partitura Piano', type: 'pdf', url: 'https://example.com/partitura.pdf' },
+      { id: 2, title: 'Cifra Simplificada', type: 'doc', url: 'https://example.com/cifra.doc' }
+    ],
+    audioFiles: [
+      { id: 1, title: 'Playback Original', url: 'https://example.com/playback.mp3' },
+      { id: 2, title: 'Playback -2 tons', url: 'https://example.com/playback-2.mp3' }
+    ]
+  },
+  { 
+    id: '2', 
+    title: 'Pra Te Adorar Eu Vivo', 
+    artist: 'Diante do Trono', 
+    originalKey: 'C', 
+    bpm: 85, 
+    category: 'Adoração',
+    lyrics: 'Pra te adorar eu vivo\nPra te adorar eu vivo\nJesus, és o centro\nDa minha devoção',
+    youtubeLinks: [
+      { id: 1, title: 'Ao Vivo', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
+    ],
+    documents: [],
+    audioFiles: []
+  },
+  { 
+    id: '3', 
+    title: 'Eu Vou Construir', 
+    artist: 'Toque no Altar', 
+    originalKey: 'F', 
+    bpm: 130, 
+    category: 'Celebração',
+    lyrics: 'Eu vou construir a minha vida em Ti\nTu és a rocha eternal\nSobre a rocha firme eu vou ficar',
+    youtubeLinks: [],
+    documents: [
+      { id: 1, title: 'Tablatura Guitarra', type: 'pdf', url: 'https://example.com/tab.pdf' }
+    ],
+    audioFiles: []
+  },
+  { 
+    id: '4', 
+    title: 'Rei do Meu Coração', 
+    artist: 'Ministério Zoe', 
+    originalKey: 'A', 
+    bpm: 95, 
+    category: 'Adoração',
+    lyrics: 'Seja bem-vindo aqui\nToma o Teu lugar\nRei do meu coração',
+    youtubeLinks: [
+      { id: 1, title: 'Versão Studio', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
+    ],
+    documents: [],
+    audioFiles: [
+      { id: 1, title: 'Playback', url: 'https://example.com/rei-playback.mp3' }
+    ]
+  },
+  { 
+    id: '5', 
+    title: 'Cornerstone', 
+    artist: 'Hillsong', 
+    originalKey: 'D', 
+    bpm: 105, 
+    category: 'Adoração',
+    lyrics: 'My hope is built on nothing less\nThan Jesus blood and righteousness\nI dare not trust the sweetest frame\nBut wholly trust in Jesus name',
+    youtubeLinks: [
+      { id: 1, title: 'Live', url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ' }
+    ],
+    documents: [
+      { id: 1, title: 'Lead Sheet', type: 'pdf', url: 'https://example.com/leadsheet.pdf' }
+    ],
+    audioFiles: []
+  }
 ];
 
 const musicalKeys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];

@@ -27,7 +27,7 @@ export const AddCourseDialog = ({ trigger, onAdd, departments }: AddCourseDialog
       onAdd({
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
-        departmentId: formData.departmentId || undefined,
+        departmentId: formData.departmentId === 'general' ? undefined : formData.departmentId,
       });
       setFormData({ name: '', description: '', departmentId: '' });
       setOpen(false);
@@ -78,7 +78,7 @@ export const AddCourseDialog = ({ trigger, onAdd, departments }: AddCourseDialog
                 <SelectValue placeholder="Selecione um departamento" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Geral (Todos os departamentos)</SelectItem>
+                <SelectItem value="general">Geral (Todos os departamentos)</SelectItem>
                 {departments.map((dept) => (
                   <SelectItem key={dept.id} value={dept.id}>
                     {dept.name}

@@ -8,6 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Calendar, Search, Plus, Clock, Users, Music, CheckCircle, AlertTriangle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { CreateScaleDialog } from '@/components/CreateScaleDialog';
+import { ViewScaleDialog } from '@/components/ViewScaleDialog';
+import { EditScaleDialog } from '@/components/EditScaleDialog';
 
 // Mock data
 const mockScales = [
@@ -134,6 +136,12 @@ export const Scales = () => {
     published: mockScales.filter(s => s.status === 'published').length,
     completed: mockScales.filter(s => s.status === 'completed').length,
     needAttention: mockScales.filter(s => s.confirmedMembers < s.totalMembers && s.status === 'published').length,
+  };
+
+  const handleSaveScale = (updatedScale: any) => {
+    // Here you would typically update the scale in your state management or API
+    console.log('Scale updated:', updatedScale);
+    // For now, just log the updated scale
   };
 
   return (
@@ -315,14 +323,25 @@ export const Scales = () => {
                     </div>
                     
                     <div className="flex flex-col space-y-2 ml-4">
-                      <Button variant="outline" size="sm">
-                        Visualizar
-                      </Button>
+                      <ViewScaleDialog
+                        trigger={
+                          <Button variant="outline" size="sm">
+                            Visualizar
+                          </Button>
+                        }
+                        scale={scale}
+                      />
                       {canCreateScales && (
                         <>
-                          <Button variant="outline" size="sm">
-                            Editar
-                          </Button>
+                          <EditScaleDialog
+                            trigger={
+                              <Button variant="outline" size="sm">
+                                Editar
+                              </Button>
+                            }
+                            scale={scale}
+                            onSave={handleSaveScale}
+                          />
                           {scale.status === 'draft' && (
                             <Button variant="outline" size="sm">
                               Publicar

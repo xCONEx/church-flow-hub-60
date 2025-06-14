@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   email: string;
@@ -9,6 +10,8 @@ export interface User {
   avatar?: string;
   experience?: 'beginner' | 'intermediate' | 'advanced';
   skills?: string[];
+  language?: string;
+  darkMode?: boolean;
   joinedAt: Date;
   lastActive?: Date;
 }

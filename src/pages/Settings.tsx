@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -24,7 +23,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export const Settings = () => {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { toast } = useToast();
   
   // Estados para as configurações
@@ -33,10 +32,16 @@ export const Settings = () => {
   const [scaleReminders, setScaleReminders] = useState(true);
   const [eventNotifications, setEventNotifications] = useState(true);
   const [darkMode, setDarkMode] = useState(() => {
+    if (user?.darkMode !== undefined) {
+      return user.darkMode;
+    }
     return localStorage.getItem('theme') === 'dark' || 
            (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
   });
   const [language, setLanguage] = useState(() => {
+    if (user?.language) {
+      return user.language;
+    }
     return localStorage.getItem('language') || 'pt-BR';
   });
   const [autoBackup, setAutoBackup] = useState(true);
@@ -59,24 +64,45 @@ export const Settings = () => {
     localStorage.setItem('language', language);
   }, [language]);
 
-  const handleSaveSettings = () => {
-    toast({
-      title: "Configurações Salvas",
-      description: "Suas configurações foram atualizadas com sucesso.",
-    });
+  const handleSaveSettings = async () => {
+    try {
+      await updateUser({
+        language,
+        darkMode
+      });
+      toast({
+        title: "Configurações Salvas",
+        description: "Suas configurações foram atualizadas com sucesso.",
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar as configurações.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleThemeToggle = (checked: boolean) => {
+  const handleThemeToggle = async (checked: boolean) => {
     setDarkMode(checked);
+    try {
+      await updateUser({ darkMode: checked });
+    } catch (error) {
+      console.error('Erro ao salvar tema:', error);
+    }
   };
 
-  const handleLanguageChange = (newLanguage: string) => {
+  const handleLanguageChange = async (newLanguage: string) => {
     setLanguage(newLanguage);
-    // Aqui você poderia implementar a mudança de idioma real da aplicação
-    toast({
-      title: "Idioma Alterado",
-      description: `Idioma alterado para ${newLanguage === 'pt-BR' ? 'Português' : newLanguage === 'en-US' ? 'English' : 'Español'}`,
-    });
+    try {
+      await updateUser({ language: newLanguage });
+      toast({
+        title: "Idioma Alterado",
+        description: `Idioma alterado para ${newLanguage === 'pt-BR' ? 'Português' : newLanguage === 'en-US' ? 'English' : 'Español'}`,
+      });
+    } catch (error) {
+      console.error('Erro ao salvar idioma:', error);
+    }
   };
 
   const handleExportData = () => {
@@ -250,7 +276,7 @@ export const Settings = () => {
                     </SelectContent>
                   </Select>
                   <div className="text-xs text-gray-400 bg-gray-50 dark:bg-gray-800 p-2 rounded">
-                    <strong>Idioma atual:</strong> {getLanguageLabel(language)}
+                    <strong>Idioma atual:</strong> {language === 'pt-BR' ? 'Português (Brasil)' : language === 'en-US' ? 'English (US)' : 'Español'}
                   </div>
                 </div>
 

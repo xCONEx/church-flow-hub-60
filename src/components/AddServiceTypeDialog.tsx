@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -12,14 +12,19 @@ interface AddServiceTypeDialogProps {
 
 export const AddServiceTypeDialog = ({ trigger, onAdd }: AddServiceTypeDialogProps) => {
   const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
+  const [serviceName, setServiceName] = useState('');
 
   const handleSubmit = () => {
-    if (name.trim()) {
-      onAdd(name.trim());
-      setName('');
+    if (serviceName.trim()) {
+      onAdd(serviceName.trim());
+      setServiceName('');
       setOpen(false);
     }
+  };
+
+  const handleCancel = () => {
+    setServiceName('');
+    setOpen(false);
   };
 
   return (
@@ -27,29 +32,35 @@ export const AddServiceTypeDialog = ({ trigger, onAdd }: AddServiceTypeDialogPro
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-md mx-auto">
         <DialogHeader>
           <DialogTitle>Novo Tipo de Culto</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <div>
-            <Label htmlFor="name">Nome do Tipo de Culto</Label>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="service-name">Nome do Tipo de Culto</Label>
             <Input
-              id="name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="Ex: Culto Teen, Vigília, etc."
+              id="service-name"
+              value={serviceName}
+              onChange={(e) => setServiceName(e.target.value)}
+              placeholder="Ex: Culto de Adolescentes"
+              className="w-full"
             />
           </div>
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSubmit}>
-              Criar Tipo de Culto
-            </Button>
-          </div>
         </div>
+        
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+          <Button variant="outline" onClick={handleCancel} className="w-full sm:w-auto">
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={!serviceName.trim()}
+            className="w-full sm:w-auto"
+          >
+            Criar Tipo de Culto
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

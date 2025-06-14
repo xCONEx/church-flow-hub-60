@@ -1,4 +1,3 @@
-
 export interface User {
   id: string;
   email: string;
@@ -34,6 +33,8 @@ export interface Department {
   leaderId?: string;
   collaborators: string[];
   type: 'louvor' | 'louvor-juniores' | 'louvor-teens' | 'midia' | 'midia-juniores' | 'sonoplastia' | 'instrumentos' | 'recepcao' | 'ministracao' | 'palavra' | 'oracao' | 'custom';
+  parentDepartmentId?: string; // Para sub-departamentos
+  isSubDepartment?: boolean;
   createdAt: Date;
 }
 

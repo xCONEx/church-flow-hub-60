@@ -1,14 +1,24 @@
 
 import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
+import { Department } from '@/types';
 
 interface AddDepartmentDialogProps {
   trigger: React.ReactNode;
-  onAdd: (department: { name: string; type: string; leaderId?: string; collaborators: string[] }) => void;
+  onAdd: (department: { 
+    name: string; 
+    type: string; 
+    leaderId?: string; 
+    collaborators: string[]; 
+    parentDepartmentId?: string;
+    isSubDepartment?: boolean;
+  }) => void;
+  departments: Department[];
 }
 
 const departmentTypes = [
@@ -23,23 +33,39 @@ const departmentTypes = [
   { value: 'custom', label: 'Personalizado' },
 ];
 
-export const AddDepartmentDialog = ({ trigger, onAdd }: AddDepartmentDialogProps) => {
+export const AddDepartmentDialog = ({ trigger, onAdd, departments }: AddDepartmentDialogProps) => {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     type: '',
+    isSubDepartment: false,
+    parentDepartmentId: '',
   });
+
+  const parentDepartments = departments.filter(dept => !dept.isSubDepartment);
 
   const handleSubmit = () => {
     if (formData.name && formData.type) {
+      if (formData.isSubDepartment && !formData.parentDepartmentId) {
+        return; // Não permitir sub-departamento sem pai
+      }
+
       onAdd({
         name: formData.name,
         type: formData.type,
         collaborators: [],
+        parentDepartmentId: formData.isSubDepartment ? formData.parentDepartmentId : undefined,
+        isSubDepartment: formData.isSubDepartment,
       });
-      setFormData({ name: '', type: '' });
+      
+      setFormData({ name: '', type: '', isSubDepartment: false, parentDepartmentId: '' });
       setOpen(false);
     }
+  };
+
+  const handleCancel = () => {
+    setFormData({ name: '', type: '', isSubDepartment: false, parentDepartmentId: '' });
+    setOpen(false);
   };
 
   return (
@@ -47,21 +73,57 @@ export const AddDepartmentDialog = ({ trigger, onAdd }: AddDepartmentDialogProps
       <DialogTrigger asChild>
         {trigger}
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-md mx-auto">
         <DialogHeader>
           <DialogTitle>Novo Departamento</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
-          <div>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
             <Label htmlFor="name">Nome do Departamento</Label>
             <Input
               id="name"
               value={formData.name}
               onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
               placeholder="Ex: Louvor Jovem"
+              className="w-full"
             />
           </div>
-          <div>
+          
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="is-sub"
+              checked={formData.isSubDepartment}
+              onCheckedChange={(checked) => setFormData(prev => ({ 
+                ...prev, 
+                isSubDepartment: checked,
+                parentDepartmentId: checked ? prev.parentDepartmentId : ''
+              }))}
+            />
+            <Label htmlFor="is-sub">É um sub-departamento</Label>
+          </div>
+
+          {formData.isSubDepartment && (
+            <div className="space-y-2">
+              <Label htmlFor="parent">Departamento Pai</Label>
+              <Select 
+                value={formData.parentDepartmentId} 
+                onValueChange={(value) => setFormData(prev => ({ ...prev, parentDepartmentId: value }))}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o departamento pai" />
+                </SelectTrigger>
+                <SelectContent>
+                  {parentDepartments.map(dept => (
+                    <SelectItem key={dept.id} value={dept.id}>
+                      {dept.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
+          <div className="space-y-2">
             <Label htmlFor="type">Tipo</Label>
             <Select value={formData.type} onValueChange={(value) => setFormData(prev => ({ ...prev, type: value }))}>
               <SelectTrigger>
@@ -76,15 +138,20 @@ export const AddDepartmentDialog = ({ trigger, onAdd }: AddDepartmentDialogProps
               </SelectContent>
             </Select>
           </div>
-          <div className="flex justify-end space-x-2">
-            <Button variant="outline" onClick={() => setOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={handleSubmit}>
-              Criar Departamento
-            </Button>
-          </div>
         </div>
+        
+        <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
+          <Button variant="outline" onClick={handleCancel} className="w-full sm:w-auto">
+            Cancelar
+          </Button>
+          <Button 
+            onClick={handleSubmit} 
+            disabled={!formData.name || !formData.type || (formData.isSubDepartment && !formData.parentDepartmentId)}
+            className="w-full sm:w-auto"
+          >
+            Criar Departamento
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

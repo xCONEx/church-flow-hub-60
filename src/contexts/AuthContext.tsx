@@ -4,8 +4,15 @@ import { AuthContextType, User, Church } from '@/types';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock users for testing
+// Mock users for testing - incluindo o usuário master
 const mockUsers = [
+  {
+    id: 'master-1',
+    email: 'master@churchmanager.com',
+    name: 'Master Admin',
+    role: 'master' as const,
+    joinedAt: new Date('2024-01-01'),
+  },
   {
     id: '1',
     email: 'admin@igreja.com',
@@ -73,7 +80,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedUser) {
       const userData = JSON.parse(savedUser);
       setUser(userData);
-      setChurch(mockChurch);
+      
+      // Master não precisa de igreja, outros usuários sim
+      if (userData.role !== 'master' && userData.churchId) {
+        setChurch(mockChurch);
+      }
     }
     setIsLoading(false);
   }, []);
@@ -97,7 +108,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     setUser(foundUser);
-    setChurch(mockChurch);
+    
+    // Master não precisa de igreja
+    if (foundUser.role !== 'master') {
+      setChurch(mockChurch);
+    }
+    
     localStorage.setItem('church-manager-user', JSON.stringify(foundUser));
     setIsLoading(false);
   };

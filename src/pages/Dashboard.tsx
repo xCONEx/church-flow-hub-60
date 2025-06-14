@@ -14,7 +14,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 
 // Mock data for calculations
@@ -80,7 +80,13 @@ const mockSongs = [
 export const Dashboard = () => {
   const { user, church } = useAuth();
   const navigate = useNavigate();
-  const [tutorialOpen, setTutorialOpen] = useState(false);
+
+  // Redirecionar usuário master para o dashboard específico
+  useEffect(() => {
+    if (user?.role === 'master') {
+      navigate('/master-dashboard', { replace: true });
+    }
+  }, [user, navigate]);
 
   // Calculate real stats
   const stats = useMemo(() => {

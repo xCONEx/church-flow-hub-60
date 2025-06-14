@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -9,6 +10,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Login } from "@/pages/Login";
 import { Register } from "@/pages/Register";
 import { Dashboard } from "@/pages/Dashboard";
+import { MasterDashboard } from "@/pages/MasterDashboard";
 import { Members } from "@/pages/Members";
 import { Repertoire } from "@/pages/Repertoire";
 import { Invites } from "@/pages/Invites";
@@ -44,11 +46,20 @@ const App = () => (
                   </ProtectedRoute>
                 } 
               />
+
+              <Route 
+                path="/master-dashboard" 
+                element={
+                  <ProtectedRoute allowedRoles={['master']}>
+                    <MasterDashboard />
+                  </ProtectedRoute>
+                } 
+              />
               
               <Route 
                 path="/scales" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
                     <Scales />
                   </ProtectedRoute>
                 } 
@@ -66,7 +77,7 @@ const App = () => (
               <Route 
                 path="/repertoire" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
                     <Repertoire />
                   </ProtectedRoute>
                 } 
@@ -75,7 +86,7 @@ const App = () => (
               <Route 
                 path="/training" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
                     <Training />
                   </ProtectedRoute>
                 } 
@@ -102,7 +113,7 @@ const App = () => (
               <Route 
                 path="/profile" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['master', 'admin', 'leader', 'collaborator', 'member']}>
                     <Profile />
                   </ProtectedRoute>
                 } 
@@ -111,7 +122,7 @@ const App = () => (
               <Route 
                 path="/settings" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['master', 'admin', 'leader', 'collaborator', 'member']}>
                     <Settings />
                   </ProtectedRoute>
                 } 
@@ -120,7 +131,7 @@ const App = () => (
               <Route 
                 path="/events" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
                     <Dashboard />
                   </ProtectedRoute>
                 } 
@@ -128,7 +139,7 @@ const App = () => (
               <Route 
                 path="/communication" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
                     <Dashboard />
                   </ProtectedRoute>
                 } 
@@ -136,7 +147,7 @@ const App = () => (
               <Route 
                 path="/notifications" 
                 element={
-                  <ProtectedRoute>
+                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
                     <Dashboard />
                   </ProtectedRoute>
                 } 

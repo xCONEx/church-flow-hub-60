@@ -32,7 +32,8 @@ export const ProtectedRoute = ({
     return <Navigate to="/unauthorized" replace />;
   }
 
-  if (requireChurch && !church) {
+  // Master não precisa de igreja
+  if (requireChurch && user.role !== 'master' && !church) {
     return <Navigate to="/setup-church" replace />;
   }
 

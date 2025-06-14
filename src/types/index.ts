@@ -43,7 +43,55 @@ export interface Course {
   name: string;
   description?: string;
   churchId: string;
+  departmentId?: string; // Novo campo para associar ao departamento
+  instructorId?: string;
+  modules: CourseModule[];
+  tags: string[];
+  isActive: boolean;
   createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface CourseModule {
+  id: string;
+  courseId: string;
+  title: string;
+  description?: string;
+  order: number;
+  lessons: Lesson[];
+  createdAt: Date;
+}
+
+export interface Lesson {
+  id: string;
+  moduleId: string;
+  title: string;
+  content?: string;
+  order: number;
+  files: LessonFile[];
+  videoUrl?: string;
+  duration?: number; // em minutos
+  createdAt: Date;
+}
+
+export interface LessonFile {
+  id: string;
+  lessonId: string;
+  name: string;
+  type: 'pdf' | 'doc' | 'image' | 'video' | 'audio' | 'other';
+  url: string;
+  size: number; // em bytes
+  uploadedAt: Date;
+}
+
+export interface UserCourseProgress {
+  id: string;
+  userId: string;
+  courseId: string;
+  enrolledAt: Date;
+  completedAt?: Date;
+  progress: number; // 0-100
+  completedLessons: string[];
 }
 
 export interface Scale {

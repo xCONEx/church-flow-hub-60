@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,6 +9,7 @@ import { AddDepartmentDialog } from '@/components/AddDepartmentDialog';
 import { AddServiceTypeDialog } from '@/components/AddServiceTypeDialog';
 import { AddCourseDialog } from '@/components/AddCourseDialog';
 import { Department, Course } from '@/types';
+import { Badge } from '@/components/ui/badge';
 
 export const ChurchSettings = () => {
   const { user, church } = useAuth();
@@ -107,6 +107,23 @@ export const ChurchSettings = () => {
 
   const handleDeleteCourse = (id: string) => {
     setCourses(courses.filter(course => course.id !== id));
+  };
+
+  const handleAddCourse = (courseData: { name: string; description?: string; departmentId?: string }) => {
+    const newCourse: Course = {
+      id: Date.now().toString(), 
+      name: courseData.name,
+      description: courseData.description || '',
+      churchId: '1',
+      departmentId: courseData.departmentId,
+      instructorId: user?.id,
+      isActive: true,
+      tags: [],
+      modules: [],
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+    setCourses([...courses, newCourse]);
   };
 
   const getDepartmentHierarchy = () => {
@@ -295,6 +312,7 @@ export const ChurchSettings = () => {
                     <CardDescription className="text-sm">Gerencie os cursos e treinamentos</CardDescription>
                   </div>
                   <AddCourseDialog
+                    departments={departments}
                     trigger={
                       <Button className="bg-gradient-to-r from-blue-500 to-purple-500 w-full md:w-auto">
                         <Plus className="h-4 w-4 mr-2" />
@@ -302,44 +320,48 @@ export const ChurchSettings = () => {
                         <span className="sm:hidden">Novo</span>
                       </Button>
                     }
-                    onAdd={(course) => setCourses([...courses, { 
-                      ...course, 
-                      id: Date.now().toString(), 
-                      churchId: '1',
-                      description: course.description || '',
-                      createdAt: new Date() 
-                    }])}
+                    onAdd={handleAddCourse}
                   />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {courses.map((course) => (
-                    <div key={course.id} className="flex items-start justify-between p-3 md:p-4 border rounded-lg">
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-semibold text-sm md:text-base mb-1">{course.name}</h3>
-                        {course.description && (
-                          <p className="text-xs md:text-sm text-gray-600 mb-2 line-clamp-2">{course.description}</p>
-                        )}
-                        <p className="text-xs text-gray-500">
-                          Criado em {course.createdAt.toLocaleDateString('pt-BR')}
-                        </p>
+                  {courses.map((course) => {
+                    const department = departments.find(d => d.id === course.departmentId);
+                    return (
+                      <div key={course.id} className="flex items-start justify-between p-3 md:p-4 border rounded-lg">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <h3 className="font-semibold text-sm md:text-base">{course.name}</h3>
+                            {department && (
+                              <Badge variant="outline" className="text-xs">
+                                {department.name}
+                              </Badge>
+                            )}
+                          </div>
+                          {course.description && (
+                            <p className="text-xs md:text-sm text-gray-600 mb-2 line-clamp-2">{course.description}</p>
+                          )}
+                          <p className="text-xs text-gray-500">
+                            Criado em {course.createdAt.toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
+                        <div className="flex space-x-1 md:space-x-2 ml-2">
+                          <Button variant="outline" size="sm" className="h-8 w-8 p-0">
+                            <Edit className="h-3 w-3 md:h-4 md:w-4" />
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
+                            onClick={() => handleDeleteCourse(course.id)}
+                          >
+                            <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex space-x-1 md:space-x-2 ml-2">
-                        <Button variant="outline" size="sm" className="h-8 w-8 p-0">
-                          <Edit className="h-3 w-3 md:h-4 md:w-4" />
-                        </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-red-600 hover:text-red-700 h-8 w-8 p-0"
-                          onClick={() => handleDeleteCourse(course.id)}
-                        >
-                          <Trash2 className="h-3 w-3 md:h-4 md:w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </CardContent>
             </Card>

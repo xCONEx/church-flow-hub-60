@@ -12,7 +12,8 @@ import {
   ChevronRight,
   LogOut,
   User,
-  Building
+  Building,
+  GraduationCap
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +24,7 @@ const navigation = [
   { name: 'Escalas', href: '/scales', icon: Calendar, roles: ['admin', 'leader', 'collaborator', 'member'] },
   { name: 'Membros', href: '/members', icon: Users, roles: ['admin', 'leader'] },
   { name: 'Repertório', href: '/repertoire', icon: Music, roles: ['admin', 'leader', 'collaborator', 'member'] },
+  { name: 'Treinamento', href: '/training', icon: GraduationCap, roles: ['admin', 'leader', 'collaborator', 'member'] },
   { name: 'Convites', href: '/invites', icon: Mail, roles: ['admin', 'leader'] },
   { name: 'Config. Igreja', href: '/church-settings', icon: Building, roles: ['admin'] },
   { name: 'Perfil', href: '/profile', icon: User, roles: ['admin', 'leader', 'collaborator', 'member'] },

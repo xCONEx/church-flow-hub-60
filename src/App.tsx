@@ -14,6 +14,7 @@ import { Repertoire } from "@/pages/Repertoire";
 import { Invites } from "@/pages/Invites";
 import { Scales } from "@/pages/Scales";
 import { ChurchSettings } from "@/pages/ChurchSettings";
+import { Training } from "@/pages/Training";
 import { Profile } from "@/pages/Profile";
 import { Settings } from "@/pages/Settings";
 import { Unauthorized } from "@/pages/Unauthorized";
@@ -69,6 +70,15 @@ const App = () => (
                 </ProtectedRoute>
               } 
             />
+
+            <Route 
+              path="/training" 
+              element={
+                <ProtectedRoute>
+                  <Training />
+                </ProtectedRoute>
+              } 
+            />
             
             <Route 
               path="/invites" 
@@ -116,14 +126,6 @@ const App = () => (
             />
             <Route 
               path="/communication" 
-              element={
-                <ProtectedRoute>
-                  <Dashboard />
-                </ProtectedRoute>
-              } 
-            />
-            <Route 
-              path="/training" 
               element={
                 <ProtectedRoute>
                   <Dashboard />

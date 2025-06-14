@@ -5,17 +5,21 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Department } from '@/types';
 
 interface AddCourseDialogProps {
   trigger: React.ReactNode;
-  onAdd: (course: { name: string; description?: string }) => void;
+  onAdd: (course: { name: string; description?: string; departmentId?: string }) => void;
+  departments: Department[];
 }
 
-export const AddCourseDialog = ({ trigger, onAdd }: AddCourseDialogProps) => {
+export const AddCourseDialog = ({ trigger, onAdd, departments }: AddCourseDialogProps) => {
   const [open, setOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
+    departmentId: '',
   });
 
   const handleSubmit = () => {
@@ -23,14 +27,15 @@ export const AddCourseDialog = ({ trigger, onAdd }: AddCourseDialogProps) => {
       onAdd({
         name: formData.name.trim(),
         description: formData.description.trim() || undefined,
+        departmentId: formData.departmentId || undefined,
       });
-      setFormData({ name: '', description: '' });
+      setFormData({ name: '', description: '', departmentId: '' });
       setOpen(false);
     }
   };
 
   const handleCancel = () => {
-    setFormData({ name: '', description: '' });
+    setFormData({ name: '', description: '', departmentId: '' });
     setOpen(false);
   };
 
@@ -64,6 +69,23 @@ export const AddCourseDialog = ({ trigger, onAdd }: AddCourseDialogProps) => {
               placeholder="Descreva o conteúdo do curso..."
               className="w-full min-h-[80px]"
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="department">Departamento (opcional)</Label>
+            <Select value={formData.departmentId} onValueChange={(value) => setFormData(prev => ({ ...prev, departmentId: value }))}>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione um departamento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="">Geral (Todos os departamentos)</SelectItem>
+                {departments.map((dept) => (
+                  <SelectItem key={dept.id} value={dept.id}>
+                    {dept.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         </div>
         

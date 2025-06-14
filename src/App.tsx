@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { MasterProvider } from "@/contexts/MasterContext";
 import { NotificationProvider } from "@/contexts/NotificationContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { Login } from "@/pages/Login";
@@ -30,139 +31,141 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <NotificationProvider>
-            <Routes>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route path="/login" element={<Login />} />
-              <Route path="/register" element={<Register />} />
-              <Route path="/unauthorized" element={<Unauthorized />} />
-              
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
+          <MasterProvider>
+            <NotificationProvider>
+              <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
+                <Route path="/unauthorized" element={<Unauthorized />} />
+                
+                <Route 
+                  path="/dashboard" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } 
+                />
 
-              <Route 
-                path="/master-dashboard" 
-                element={
-                  <ProtectedRoute allowedRoles={['master']}>
-                    <MasterDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/scales" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
-                    <Scales />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/members" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'leader']}>
-                    <Members />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/repertoire" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
-                    <Repertoire />
-                  </ProtectedRoute>
-                } 
-              />
+                <Route 
+                  path="/master-dashboard" 
+                  element={
+                    <ProtectedRoute allowedRoles={['master']}>
+                      <MasterDashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                <Route 
+                  path="/scales" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
+                      <Scales />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                <Route 
+                  path="/members" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'leader']}>
+                      <Members />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                <Route 
+                  path="/repertoire" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
+                      <Repertoire />
+                    </ProtectedRoute>
+                  } 
+                />
 
-              <Route 
-                path="/training" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
-                    <Training />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/invites" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'leader']}>
-                    <Invites />
-                  </ProtectedRoute>
-                } 
-              />
+                <Route 
+                  path="/training" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
+                      <Training />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                <Route 
+                  path="/invites" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'leader']}>
+                      <Invites />
+                    </ProtectedRoute>
+                  } 
+                />
 
-              <Route 
-                path="/church-settings" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin']}>
-                    <ChurchSettings />
-                  </ProtectedRoute>
-                } 
-              />
+                <Route 
+                  path="/church-settings" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin']}>
+                      <ChurchSettings />
+                    </ProtectedRoute>
+                  } 
+                />
 
-              <Route 
-                path="/profile" 
-                element={
-                  <ProtectedRoute allowedRoles={['master', 'admin', 'leader', 'collaborator', 'member']}>
-                    <Profile />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/settings" 
-                element={
-                  <ProtectedRoute allowedRoles={['master', 'admin', 'leader', 'collaborator', 'member']}>
-                    <Settings />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route 
-                path="/events" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/communication" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/notifications" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/reports" 
-                element={
-                  <ProtectedRoute allowedRoles={['admin', 'leader']}>
-                    <Dashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              
-              <Route path="*" element={<NotFound />} />
-            </Routes>
-          </NotificationProvider>
+                <Route 
+                  path="/profile" 
+                  element={
+                    <ProtectedRoute allowedRoles={['master', 'admin', 'leader', 'collaborator', 'member']}>
+                      <Profile />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                <Route 
+                  path="/settings" 
+                  element={
+                    <ProtectedRoute allowedRoles={['master', 'admin', 'leader', 'collaborator', 'member']}>
+                      <Settings />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                <Route 
+                  path="/events" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/communication" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/notifications" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'leader', 'collaborator', 'member']}>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                <Route 
+                  path="/reports" 
+                  element={
+                    <ProtectedRoute allowedRoles={['admin', 'leader']}>
+                      <Dashboard />
+                    </ProtectedRoute>
+                  } 
+                />
+                
+                <Route path="*" element={<NotFound />} />
+              </Routes>
+            </NotificationProvider>
+          </MasterProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

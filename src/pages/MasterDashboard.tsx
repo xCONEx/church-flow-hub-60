@@ -1,31 +1,24 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Building, Users, Plus, Settings, BarChart3 } from 'lucide-react';
+import { Building, Users, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useMaster } from '@/contexts/MasterContext';
+import { CreateChurchDialog } from '@/components/CreateChurchDialog';
+import { ManageChurchesDialog } from '@/components/ManageChurchesDialog';
+import { GlobalReportsDialog } from '@/components/GlobalReportsDialog';
+import { SystemSettingsDialog } from '@/components/SystemSettingsDialog';
 
 export const MasterDashboard = () => {
   const { user } = useAuth();
+  const { stats, activities, isLoading } = useMaster();
 
-  const handleCreateChurch = () => {
-    // TODO: Implementar criação de igreja
-    console.log('Criar nova igreja');
-  };
-
-  const handleManageChurches = () => {
-    // TODO: Implementar gerenciamento de igrejas
-    console.log('Gerenciar igrejas');
-  };
-
-  const handleViewReports = () => {
-    // TODO: Implementar relatórios globais
-    console.log('Ver relatórios globais');
-  };
-
-  const handleSystemSettings = () => {
-    // TODO: Implementar configurações do sistema
-    console.log('Configurações do sistema');
-  };
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -50,9 +43,9 @@ export const MasterDashboard = () => {
               <Building className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">15</div>
+              <div className="text-2xl font-bold">{stats.totalChurches}</div>
               <p className="text-xs text-muted-foreground">
-                +2 este mês
+                +{stats.newChurchesThisMonth} este mês
               </p>
             </CardContent>
           </Card>
@@ -65,9 +58,9 @@ export const MasterDashboard = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">1,234</div>
+              <div className="text-2xl font-bold">{stats.totalUsers}</div>
               <p className="text-xs text-muted-foreground">
-                +45 esta semana
+                +{stats.newUsersThisWeek} esta semana
               </p>
             </CardContent>
           </Card>
@@ -80,9 +73,9 @@ export const MasterDashboard = () => {
               <BarChart3 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">12</div>
+              <div className="text-2xl font-bold">{stats.activeChurches}</div>
               <p className="text-xs text-muted-foreground">
-                80% de atividade
+                {Math.round((stats.activeChurches / stats.totalChurches) * 100)}% de atividade
               </p>
             </CardContent>
           </Card>
@@ -98,40 +91,10 @@ export const MasterDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Button 
-                onClick={handleCreateChurch}
-                className="h-20 flex-col bg-gradient-to-r from-blue-500 to-purple-500 hover:from-blue-600 hover:to-purple-600"
-              >
-                <Plus className="h-6 w-6 mb-2" />
-                Nova Igreja
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-20 flex-col"
-                onClick={handleManageChurches}
-              >
-                <Building className="h-6 w-6 mb-2" />
-                Gerenciar Igrejas
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-20 flex-col"
-                onClick={handleViewReports}
-              >
-                <BarChart3 className="h-6 w-6 mb-2" />
-                Relatórios Globais
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="h-20 flex-col"
-                onClick={handleSystemSettings}
-              >
-                <Settings className="h-6 w-6 mb-2" />
-                Config. Sistema
-              </Button>
+              <CreateChurchDialog />
+              <ManageChurchesDialog />
+              <GlobalReportsDialog />
+              <SystemSettingsDialog />
             </div>
           </CardContent>
         </Card>
@@ -146,29 +109,22 @@ export const MasterDashboard = () => {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium">Nova igreja cadastrada</p>
-                  <p className="text-sm text-gray-600">Igreja Batista Nova Vida</p>
+              {activities.map((activity) => (
+                <div key={activity.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                  <div>
+                    <p className="font-medium">{activity.description}</p>
+                    <p className="text-sm text-gray-600">{activity.details}</p>
+                  </div>
+                  <span className="text-sm text-gray-500">
+                    {activity.timestamp.getTime() > Date.now() - 60 * 60 * 1000 
+                      ? `${Math.round((Date.now() - activity.timestamp.getTime()) / (1000 * 60))}min atrás`
+                      : activity.timestamp.getTime() > Date.now() - 24 * 60 * 60 * 1000
+                      ? `${Math.round((Date.now() - activity.timestamp.getTime()) / (1000 * 60 * 60))}h atrás`
+                      : `${Math.round((Date.now() - activity.timestamp.getTime()) / (1000 * 60 * 60 * 24))} dia${Math.round((Date.now() - activity.timestamp.getTime()) / (1000 * 60 * 60 * 24)) > 1 ? 's' : ''} atrás`
+                    }
+                  </span>
                 </div>
-                <span className="text-sm text-gray-500">2h atrás</span>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium">Novo admin cadastrado</p>
-                  <p className="text-sm text-gray-600">Pastor Carlos - Igreja Central</p>
-                </div>
-                <span className="text-sm text-gray-500">5h atrás</span>
-              </div>
-              
-              <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium">Igreja desativada</p>
-                  <p className="text-sm text-gray-600">Igreja Comunidade Cristã</p>
-                </div>
-                <span className="text-sm text-gray-500">1 dia atrás</span>
-              </div>
+              ))}
             </div>
           </CardContent>
         </Card>

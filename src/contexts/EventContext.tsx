@@ -2,6 +2,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Event, EventRegistration, EventGuest } from '@/types';
 import { useAuth } from './AuthContext';
+import { useNotifications } from './NotificationContext';
 
 interface EventContextType {
   events: Event[];
@@ -73,6 +74,7 @@ const mockGuests: EventGuest[] = [];
 
 export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, church } = useAuth();
+  const { addNotification } = useNotifications();
   const [events, setEvents] = useState<Event[]>(mockEvents);
   const [registrations, setRegistrations] = useState<EventRegistration[]>(mockRegistrations);
   const [guests, setGuests] = useState<EventGuest[]>(mockGuests);
@@ -113,11 +115,26 @@ export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ childre
 
   const updateEvent = async (eventId: string, eventData: Partial<Event>) => {
     setIsLoading(true);
+    const event = events.find(e => e.id === eventId);
+    const wasPublished = event?.status === 'published';
+    const isBeingPublished = eventData.status === 'published' && !wasPublished;
+    
     setEvents(prev => prev.map(event => 
       event.id === eventId 
         ? { ...event, ...eventData, updatedAt: new Date() }
         : event
     ));
+
+    // Criar notificação quando evento é publicado
+    if (isBeingPublished && event) {
+      addNotification({
+        type: 'event',
+        title: 'Novo Evento Publicado',
+        message: `O evento "${event.title}" foi publicado. Inscrições abertas!`,
+        eventId: event.id
+      });
+    }
+
     setIsLoading(false);
   };
 

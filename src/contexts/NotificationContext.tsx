@@ -4,13 +4,14 @@ import { useAuth } from './AuthContext';
 
 interface Notification {
   id: string;
-  type: 'scale' | 'course';
+  type: 'scale' | 'course' | 'event';
   title: string;
   message: string;
   date: Date;
   read: boolean;
   scaleId?: string;
   courseId?: string;
+  eventId?: string;
 }
 
 interface NotificationContextType {
@@ -45,6 +46,15 @@ const mockNotifications: Notification[] = [
   },
   {
     id: '3',
+    type: 'event',
+    title: 'Novo Evento',
+    message: 'Evento "Conferência de Jovens 2024" foi publicado. Inscrições abertas!',
+    date: new Date('2024-12-10T14:00:00'),
+    read: false,
+    eventId: '1'
+  },
+  {
+    id: '4',
     type: 'scale',
     title: 'Confirmação Pendente',
     message: 'Confirme sua presença na escala "Reunião de Oração" do dia 17/12/2024',

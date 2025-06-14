@@ -1,5 +1,5 @@
 
-import { Bell, Calendar, BookOpen, Clock, X } from 'lucide-react';
+import { Bell, Calendar, BookOpen, Clock, CalendarDays } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -24,6 +24,8 @@ export const NotificationDropdown = () => {
       navigate('/scales');
     } else if (notification.type === 'course') {
       navigate('/training');
+    } else if (notification.type === 'event') {
+      navigate('/events');
     }
   };
 
@@ -47,8 +49,23 @@ export const NotificationDropdown = () => {
         return <Calendar className="h-4 w-4" />;
       case 'course':
         return <BookOpen className="h-4 w-4" />;
+      case 'event':
+        return <CalendarDays className="h-4 w-4" />;
       default:
         return <Bell className="h-4 w-4" />;
+    }
+  };
+
+  const getBackgroundColor = (type: string) => {
+    switch (type) {
+      case 'scale':
+        return 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400';
+      case 'course':
+        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400';
+      case 'event':
+        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400';
+      default:
+        return 'bg-gray-100 dark:bg-gray-900/30 text-gray-600 dark:text-gray-400';
     }
   };
 
@@ -102,11 +119,7 @@ export const NotificationDropdown = () => {
                   onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex items-start space-x-3">
-                    <div className={`p-2 rounded-full ${
-                      notification.type === 'scale' 
-                        ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
-                        : 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
-                    }`}>
+                    <div className={`p-2 rounded-full ${getBackgroundColor(notification.type)}`}>
                       {getIcon(notification.type)}
                     </div>
                     

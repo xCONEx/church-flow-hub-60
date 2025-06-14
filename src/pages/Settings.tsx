@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { 
-  User, 
   Bell, 
   Shield, 
   Palette, 
@@ -67,12 +66,8 @@ export const Settings = () => {
           <p className="text-gray-600">Gerencie suas preferências e configurações da aplicação</p>
         </div>
 
-        <Tabs defaultValue="profile" className="w-full">
-          <TabsList className="grid w-full grid-cols-6">
-            <TabsTrigger value="profile" className="flex items-center space-x-2">
-              <User className="h-4 w-4" />
-              <span className="hidden sm:inline">Perfil</span>
-            </TabsTrigger>
+        <Tabs defaultValue="notifications" className="w-full">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="notifications" className="flex items-center space-x-2">
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">Notificações</span>
@@ -94,43 +89,6 @@ export const Settings = () => {
               <span className="hidden sm:inline">Backup</span>
             </TabsTrigger>
           </TabsList>
-
-          <TabsContent value="profile" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Informações do Perfil</CardTitle>
-                <CardDescription>Atualize suas informações pessoais</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Nome Completo</Label>
-                    <Input id="name" defaultValue={user?.name} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input id="email" type="email" defaultValue={user?.email} />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Telefone</Label>
-                    <Input id="phone" type="tel" placeholder="(11) 99999-9999" />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="role">Função</Label>
-                    <Input id="role" value={user?.role} disabled className="capitalize" />
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="bio">Biografia</Label>
-                  <Textarea id="bio" placeholder="Conte um pouco sobre você..." />
-                </div>
-                <Button onClick={handleSaveSettings} className="bg-gradient-to-r from-blue-500 to-purple-500">
-                  <Save className="h-4 w-4 mr-2" />
-                  Salvar Alterações
-                </Button>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="notifications" className="space-y-4">
             <Card>

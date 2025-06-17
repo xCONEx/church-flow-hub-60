@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,7 +19,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const initAuth = async () => {
       try {
         // Get initial session
-        const { data: { session }, error } = await supabase.auth.getSession();
+        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('AuthProvider: Error getting initial session:', error);
@@ -31,9 +30,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
         
         if (mounted) {
-          setSession(session);
-          if (session?.user) {
-            await loadUserData(session.user);
+          setSession(initialSession);
+          if (initialSession?.user) {
+            await loadUserData(initialSession.user);
           } else {
             setIsLoading(false);
           }
@@ -65,6 +64,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Don't reload data on token refresh if we already have user data
           if (!user) {
             await loadUserData(session.user);
+          } else {
+            setIsLoading(false);
           }
         } else if (!session) {
           setUser(null);
@@ -80,7 +81,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Remove all dependencies to prevent re-initialization
+  }, []); // Removido as dependências que causavam o loop
 
   const loadUserData = async (authUser: SupabaseUser) => {
     try {
@@ -138,7 +139,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Load church data if needed (only if not master)
+      // Load church data if needed (only if not master and has churchId)
       let churchData: Church | null = null;
       if (churchId && userRole !== 'master') {
         try {
@@ -186,7 +187,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: profile.name,
         phone: profile.phone,
         role: userRole,
-        churchId,
+        churchId: userRole !== 'master' ? churchId : undefined,
         avatar: profile.avatar,
         experience: profile.experience as 'beginner' | 'intermediate' | 'advanced' || 'beginner',
         skills: profile.skills || [],
@@ -332,11 +333,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
 
-    // Reload user data
-    const { data: authUser } = await supabase.auth.getUser();
-    if (authUser.user) {
-      await loadUserData(authUser.user);
-    }
+    // Update local state instead of reloading
+    setUser(prev => prev ? { ...prev, ...userData } : prev);
   };
 
   const value: AuthContextType = {

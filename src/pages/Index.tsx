@@ -8,60 +8,39 @@ import { Church } from 'lucide-react';
 const Index = () => {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
-  const [hasCheckedAuth, setHasCheckedAuth] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     // Só processa depois que o auth terminou de carregar
-    if (!isLoading) {
-      setHasCheckedAuth(true);
-      
-      console.log('Index: Auth state determined -', { 
-        user: user?.email || 'no user', 
-        role: user?.role,
-        hasUser: !!user
+    if (!isLoading && user && !redirecting) {
+      console.log('Index: User authenticated, redirecting...', { 
+        email: user.email, 
+        role: user.role 
       });
       
-      if (user) {
-        console.log('Index: User authenticated, redirecting...');
-        const targetPath = user.role === 'master' ? '/master-dashboard' : '/dashboard';
-        
-        // Small delay to ensure smooth transition
-        setTimeout(() => {
-          navigate(targetPath, { replace: true });
-        }, 100);
-      }
+      setRedirecting(true);
+      const targetPath = user.role === 'master' ? '/master-dashboard' : '/dashboard';
+      
+      // Redirect immediately
+      navigate(targetPath, { replace: true });
     }
-  }, [user, isLoading, navigate]);
+  }, [user, isLoading, navigate, redirecting]);
 
-  // Show loading while determining auth state
-  if (isLoading || !hasCheckedAuth) {
+  // Show loading while determining auth state or while redirecting
+  if (isLoading || (user && redirecting)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <Church className="h-12 w-12 text-blue-600 mx-auto mb-4 animate-pulse" />
           <div className="space-y-2">
-            <p className="text-gray-600">Verificando autenticação...</p>
-            <div className="w-48 h-2 bg-gray-200 rounded-full mx-auto overflow-hidden">
-              <div className="h-full bg-blue-600 rounded-full animate-pulse" style={{ width: '60%' }}></div>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // If user is authenticated but still on index (during redirect)
-  if (user) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
-        <div className="text-center">
-          <Church className="h-12 w-12 text-blue-600 mx-auto mb-4 animate-pulse" />
-          <div className="space-y-2">
-            <p className="text-gray-600">Bem-vindo, {user.name}!</p>
-            <p className="text-sm text-gray-500">Redirecionando para o dashboard...</p>
-            <div className="w-48 h-2 bg-gray-200 rounded-full mx-auto overflow-hidden">
-              <div className="h-full bg-green-600 rounded-full animate-pulse" style={{ width: '90%' }}></div>
-            </div>
+            {user && redirecting ? (
+              <>
+                <p className="text-gray-600">Bem-vindo, {user.name}!</p>
+                <p className="text-sm text-gray-500">Redirecionando...</p>
+              </>
+            ) : (
+              <p className="text-gray-600">Verificando autenticação...</p>
+            )}
           </div>
         </div>
       </div>

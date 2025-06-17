@@ -97,8 +97,8 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         serviceTypes: church.service_types || [],
         courses: [],
         createdAt: new Date(church.created_at),
-        totalMembers: 0, // Será calculado depois
-        activeMembers: 0, // Será calculado depois
+        totalMembers: 0,
+        activeMembers: 0,
         lastActivity: new Date(),
         isActive: true,
       }));
@@ -106,7 +106,7 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       setChurches(churchesWithStats);
 
       // Calcular estatísticas reais
-      const totalUsers = 0; // Será implementado quando tivermos dados reais
+      const totalUsers = 0;
       const activeCount = churchesWithStats.filter(church => church.isActive).length;
       const thisMonth = new Date();
       thisMonth.setMonth(thisMonth.getMonth() - 1);
@@ -117,7 +117,7 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         totalUsers,
         activeChurches: activeCount,
         newChurchesThisMonth: newThisMonth,
-        newUsersThisWeek: 0, // Será implementado quando tivermos dados reais
+        newUsersThisWeek: 0,
       });
 
     } catch (error) {
@@ -130,9 +130,8 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const createChurch = async (churchData: Partial<Church>) => {
     try {
       setIsLoading(true);
+      console.log('Creating church with data:', churchData);
       
-      // Para resolver o erro TypeScript, vamos definir um admin_id padrão
-      // Você pode ajustar isso conforme sua lógica de negócio
       const { data, error } = await supabase
         .from('churches')
         .insert({
@@ -140,7 +139,7 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           address: churchData.address,
           phone: churchData.phone,
           email: churchData.email,
-          admin_id: churchData.adminId || null, // Campo obrigatório corrigido
+          admin_id: churchData.adminId, // adminId já deve ser um UUID válido
           service_types: churchData.serviceTypes || [],
         })
         .select()
@@ -152,6 +151,19 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       console.log('Church created successfully:', data);
+      
+      // Atualizar o role do admin com o church_id
+      if (churchData.adminId) {
+        const { error: roleUpdateError } = await supabase
+          .from('user_roles')
+          .update({ church_id: data.id })
+          .eq('user_id', churchData.adminId)
+          .eq('role', 'admin');
+
+        if (roleUpdateError) {
+          console.error('Error updating admin role:', roleUpdateError);
+        }
+      }
       
       // Recarregar dados
       await loadRealData();
@@ -175,7 +187,7 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           address: data.address,
           phone: data.phone,
           email: data.email,
-          admin_id: data.adminId, // Campo corrigido
+          admin_id: data.adminId,
           service_types: data.serviceTypes,
         })
         .eq('id', churchId);

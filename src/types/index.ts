@@ -1,3 +1,4 @@
+
 export interface User {
   id: string;
   email: string;
@@ -5,7 +6,6 @@ export interface User {
   phone?: string;
   role: 'master' | 'admin' | 'leader' | 'collaborator' | 'member';
   churchId?: string;
-  departmentId?: string;
   avatar?: string;
   experience?: 'beginner' | 'intermediate' | 'advanced';
   skills?: string[];
@@ -23,7 +23,7 @@ export interface Church {
   email?: string;
   adminId: string;
   departments: Department[];
-  serviceTypes: string[]; // Types of services/cultos
+  serviceTypes: string[];
   courses: Course[];
   createdAt: Date;
 }
@@ -35,7 +35,7 @@ export interface Department {
   leaderId?: string;
   collaborators: string[];
   type: 'louvor' | 'louvor-juniores' | 'louvor-teens' | 'midia' | 'midia-juniores' | 'sonoplastia' | 'instrumentos' | 'recepcao' | 'ministracao' | 'palavra' | 'oracao' | 'custom';
-  parentDepartmentId?: string; // Para sub-departamentos
+  parentDepartmentId?: string;
   isSubDepartment?: boolean;
   createdAt: Date;
 }
@@ -45,7 +45,7 @@ export interface Course {
   name: string;
   description?: string;
   churchId: string;
-  departmentId?: string; // Novo campo para associar ao departamento
+  departmentId?: string;
   instructorId?: string;
   modules: CourseModule[];
   tags: string[];
@@ -72,7 +72,7 @@ export interface Lesson {
   order: number;
   files: LessonFile[];
   videoUrl?: string;
-  duration?: number; // em minutos
+  duration?: number;
   createdAt: Date;
 }
 
@@ -82,7 +82,7 @@ export interface LessonFile {
   name: string;
   type: 'pdf' | 'doc' | 'image' | 'video' | 'audio' | 'other';
   url: string;
-  size: number; // em bytes
+  size: number;
   uploadedAt: Date;
 }
 
@@ -92,7 +92,7 @@ export interface UserCourseProgress {
   courseId: string;
   enrolledAt: Date;
   completedAt?: Date;
-  progress: number; // 0-100
+  progress: number;
   completedLessons: string[];
 }
 
@@ -100,7 +100,7 @@ export interface Scale {
   id: string;
   title: string;
   date: Date;
-  serviceType: string; // Changed from departmentId
+  serviceType: string;
   churchId: string;
   departmentId: string;
   createdBy: string;
@@ -122,7 +122,7 @@ export interface ScaleSong {
   title: string;
   artist: string;
   originalKey: string;
-  scaleKey: string; // Key for this scale
+  scaleKey: string;
   order: number;
   notes?: string;
   links?: string[];
@@ -177,10 +177,10 @@ export interface Event {
   location: string;
   churchId: string;
   createdBy: string;
-  maxAttendees?: number; // undefined para ilimitado
-  isPublic: boolean; // se o evento é aberto ao público
+  maxAttendees?: number;
+  isPublic: boolean;
   status: 'draft' | 'published' | 'cancelled' | 'completed';
-  qrReaders: string[]; // emails das pessoas que podem ler QR codes
+  qrReaders: string[];
   registrationDeadline?: Date;
   tags: string[];
   image?: string;
@@ -191,13 +191,13 @@ export interface Event {
 export interface EventRegistration {
   id: string;
   eventId: string;
-  attendeeId: string; // pode ser userId ou guestId
+  attendeeId: string;
   attendeeType: 'member' | 'guest';
-  qrCode: string; // código único para o QR
+  qrCode: string;
   registeredAt: Date;
   checkedIn: boolean;
   checkedInAt?: Date;
-  checkedInBy?: string; // email de quem fez o check-in
+  checkedInBy?: string;
 }
 
 export interface EventGuest {
@@ -205,7 +205,7 @@ export interface EventGuest {
   name: string;
   email: string;
   phone?: string;
-  document?: string; // CPF ou outro documento
+  document?: string;
   createdAt: Date;
 }
 
@@ -213,8 +213,8 @@ export interface AuthContextType {
   user: User | null;
   church: Church | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: Partial<User> & { password: string }) => Promise<void>;
-  logout: () => void;
+  register: (userData: { name: string; email: string; phone?: string; password: string }) => Promise<void>;
+  logout: () => Promise<void>;
   updateUser: (userData: Partial<User>) => Promise<void>;
   isLoading: boolean;
 }

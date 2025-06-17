@@ -34,6 +34,15 @@ export const Register = () => {
       return;
     }
 
+    if (formData.password.length < 6) {
+      toast({
+        title: "Erro no cadastro",
+        description: "A senha deve ter pelo menos 6 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       await register({
         name: formData.name,
@@ -41,11 +50,22 @@ export const Register = () => {
         phone: formData.phone,
         password: formData.password,
       });
+      
       toast({
         title: "Cadastro realizado com sucesso!",
-        description: "Aguarde a aprovação do administrador para acessar todas as funcionalidades.",
+        description: "Verifique seu email para confirmar sua conta e faça login.",
+      });
+      
+      // Clear form
+      setFormData({
+        name: '',
+        email: '',
+        phone: '',
+        password: '',
+        confirmPassword: '',
       });
     } catch (error) {
+      console.error('Register: Error:', error);
       toast({
         title: "Erro no cadastro",
         description: error instanceof Error ? error.message : "Tente novamente.",
@@ -90,6 +110,7 @@ export const Register = () => {
                   value={formData.name}
                   onChange={handleChange}
                   required
+                  disabled={isLoading}
                 />
               </div>
 
@@ -103,6 +124,7 @@ export const Register = () => {
                   value={formData.email}
                   onChange={handleChange}
                   required
+                  disabled={isLoading}
                 />
               </div>
 
@@ -115,6 +137,7 @@ export const Register = () => {
                   placeholder="(11) 99999-9999"
                   value={formData.phone}
                   onChange={handleChange}
+                  disabled={isLoading}
                 />
               </div>
               
@@ -128,6 +151,8 @@ export const Register = () => {
                   value={formData.password}
                   onChange={handleChange}
                   required
+                  minLength={6}
+                  disabled={isLoading}
                 />
               </div>
 
@@ -141,6 +166,8 @@ export const Register = () => {
                   value={formData.confirmPassword}
                   onChange={handleChange}
                   required
+                  minLength={6}
+                  disabled={isLoading}
                 />
               </div>
 

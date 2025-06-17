@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -159,9 +158,9 @@ export const Training = () => {
     
     return courses.filter(course => {
       if (!course.departmentId) return true;
-      if (user.role === 'admin') return true;
-      if (user.departmentId && course.departmentId === user.departmentId) return true;
-      return false;
+      if (user.role === 'admin' || user.role === 'master') return true;
+      // For now, show all courses since we don't have department membership info
+      return true;
     });
   };
 

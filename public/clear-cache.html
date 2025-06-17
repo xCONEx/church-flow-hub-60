@@ -1,0 +1,145 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Limpar Cache - Church Manager</title>
+    <style>
+        body {
+            font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f8fafc;
+            color: #334155;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #1e293b;
+            margin-bottom: 20px;
+        }
+        .button {
+            background: #3b82f6;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: background 0.2s;
+        }
+        .button:hover {
+            background: #2563eb;
+        }
+        .steps {
+            background: #f1f5f9;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .step {
+            margin: 10px 0;
+            padding-left: 20px;
+        }
+        .success {
+            color: #059669;
+            font-weight: 600;
+        }
+        .warning {
+            color: #d97706;
+            background: #fef3c7;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Resolver Problemas de Cache</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Problemas Comuns:</strong>
+            <ul>
+                <li>App não carrega na primeira tentativa</li>
+                <li>Tela fica travada em "Verificando autenticação..."</li>
+                <li>Erros 404 para arquivos CSS e JS</li>
+                <li>Safari não abre o aplicativo</li>
+            </ul>
+        </div>
+
+        <h2>🚀 Solução Automática</h2>
+        <button class="button" onclick="clearAllCaches()">Limpar Cache Automaticamente</button>
+        <p id="status"></p>
+
+        <h2>🛠️ Solução Manual</h2>
+        <div class="steps">
+            <h3>Chrome:</h3>
+            <div class="step">1. Pressione F12 para abrir DevTools</div>
+            <div class="step">2. Clique com botão direito no ícone de reload</div>
+            <div class="step">3. Selecione "Esvaziar cache e fazer hard reload"</div>
+            
+            <h3>Safari:</h3>
+            <div class="step">1. Vá em Safari → Preferências → Avançado</div>
+            <div class="step">2. Marque "Mostrar menu Desenvolver"</div>
+            <div class="step">3. Desenvolver → Esvaziar Caches</div>
+            
+            <h3>Firefox:</h3>
+            <div class="step">1. Pressione Ctrl+Shift+R (Windows) ou Cmd+Shift+R (Mac)</div>
+            <div class="step">2. Ou vá em Configurações → Privacidade → Limpar Dados</div>
+        </div>
+
+        <button class="button" onclick="goToApp()">Voltar ao Church Manager</button>
+    </div>
+
+    <script>
+        async function clearAllCaches() {
+            const status = document.getElementById('status');
+            status.innerHTML = '🔄 Limpando caches...';
+            
+            try {
+                // Clear browser caches
+                if ('caches' in window) {
+                    const cacheNames = await caches.keys();
+                    await Promise.all(
+                        cacheNames.map(cacheName => caches.delete(cacheName))
+                    );
+                }
+                
+                // Clear service worker cache if available
+                if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_CACHE' });
+                }
+                
+                // Clear local storage
+                localStorage.clear();
+                sessionStorage.clear();
+                
+                status.innerHTML = '<span class="success">✅ Cache limpo com sucesso!</span>';
+                
+                setTimeout(() => {
+                    status.innerHTML += '<br>🔄 Redirecionando...';
+                    setTimeout(() => {
+                        window.location.href = '/';
+                    }, 1000);
+                }, 1500);
+                
+            } catch (error) {
+                status.innerHTML = '❌ Erro ao limpar cache. Tente a solução manual.';
+                console.error('Error clearing cache:', error);
+            }
+        }
+        
+        function goToApp() {
+            window.location.href = '/';
+        }
+    </script>
+</body>
+</html>

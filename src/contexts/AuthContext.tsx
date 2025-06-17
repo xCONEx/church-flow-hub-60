@@ -15,57 +15,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     console.log('AuthProvider: Initializing authentication system...');
     
-    let isInitializing = true;
+    let mounted = true;
     
-    // Get initial session
-    const getInitialSession = async () => {
+    const initAuth = async () => {
       try {
+        // Get initial session
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('AuthProvider: Error getting initial session:', error);
-          setIsLoading(false);
+          if (mounted) {
+            setIsLoading(false);
+          }
           return;
         }
         
-        console.log('AuthProvider: Initial session found:', session?.user?.email || 'no session');
-        setSession(session);
-        
-        if (session?.user && isInitializing) {
-          await loadUserData(session.user);
-        } else {
-          setIsLoading(false);
+        if (mounted) {
+          setSession(session);
+          if (session?.user) {
+            await loadUserData(session.user);
+          } else {
+            setIsLoading(false);
+          }
         }
       } catch (error) {
-        console.error('AuthProvider: Critical error getting session:', error);
-        setIsLoading(false);
+        console.error('AuthProvider: Critical error in initAuth:', error);
+        if (mounted) {
+          setIsLoading(false);
+        }
       }
     };
-
-    getInitialSession();
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('AuthProvider: Auth state changed:', event, session?.user?.email || 'no session');
+        if (!mounted) return;
         
-        // Prevent processing during initialization
-        if (isInitializing && event === 'INITIAL_SESSION') {
-          return;
-        }
+        console.log('AuthProvider: Auth state changed:', event, session?.user?.email || 'no session');
         
         setSession(session);
         
         if (event === 'SIGNED_IN' && session?.user) {
-          console.log('AuthProvider: User signed in, loading data...');
           await loadUserData(session.user);
         } else if (event === 'SIGNED_OUT') {
-          console.log('AuthProvider: User signed out');
           setUser(null);
           setChurch(null);
           setIsLoading(false);
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          console.log('AuthProvider: Token refreshed');
           // Don't reload data on token refresh if we already have user data
           if (!user) {
             await loadUserData(session.user);
@@ -78,31 +74,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
-    // Mark initialization as complete after a short delay
-    setTimeout(() => {
-      isInitializing = false;
-    }, 1000);
+    initAuth();
 
     return () => {
+      mounted = false;
       subscription.unsubscribe();
-      isInitializing = false;
     };
-  }, []);
+  }, []); // Remove all dependencies to prevent re-initialization
 
   const loadUserData = async (authUser: SupabaseUser) => {
-    // Prevent multiple concurrent loads for the same user
-    if (user && user.id === authUser.id) {
-      console.log('AuthProvider: User data already loaded, skipping...');
-      setIsLoading(false);
-      return;
-    }
-
     try {
       console.log('AuthProvider: Loading user data for:', authUser.email);
       setIsLoading(true);
       
-      // Load profile with single attempt
-      console.log('AuthProvider: Loading profile...');
+      // Load profile
       const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')

@@ -9,7 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: User['role'][];
-  requireChurch?: boolean; // Nova prop para exigir que o usuário tenha uma igreja
+  requireChurch?: boolean;
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
@@ -38,6 +38,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Check if user has required role
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
+    console.log('ProtectedRoute: Access denied. User role:', user.role, 'Required:', allowedRoles);
     return <Navigate to="/unauthorized" replace />;
   }
 
@@ -71,5 +72,6 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
     );
   }
 
+  console.log('ProtectedRoute: Access granted for user:', user.role);
   return <>{children}</>;
 };

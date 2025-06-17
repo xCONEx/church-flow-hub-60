@@ -86,16 +86,50 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
         return;
       }
 
-      // 3. Criar a igreja com os dados fornecidos
-      const churchData = {
-        name: formData.name,
-        address: formData.address || null,
-        phone: formData.phone || null,
-        email: formData.adminEmail,
-        adminId: existingProfile.id,
-      };
+      // 3. Criar a igreja
+      const { data: createdChurch, error: churchError } = await supabase
+        .from('churches')
+        .insert({
+          name: formData.name,
+          address: formData.address || null,
+          phone: formData.phone || null,
+          email: formData.adminEmail,
+          admin_id: existingProfile.id,
+        })
+        .select()
+        .single();
 
-      await createChurch(churchData);
+      if (churchError || !createdChurch) {
+        console.error('Error creating church:', churchError);
+        throw new Error(churchError?.message || 'Erro ao criar igreja');
+      }
+
+      console.log('Church created successfully:', createdChurch.id);
+
+      // 4. IMPORTANTE: Remover role 'member' anterior se existir
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', existingProfile.id)
+        .eq('role', 'member');
+
+      // 5. Adicionar role de admin para o usuário na igreja criada
+      const { error: roleError } = await supabase
+        .from('user_roles')
+        .insert({
+          user_id: existingProfile.id,
+          church_id: createdChurch.id,
+          role: 'admin'
+        });
+
+      if (roleError) {
+        console.error('Error assigning admin role:', roleError);
+        // Tentar deletar a igreja se falhou ao criar o admin
+        await supabase.from('churches').delete().eq('id', createdChurch.id);
+        throw new Error('Erro ao atribuir role de administrador');
+      }
+
+      console.log('Admin role assigned successfully');
 
       toast({
         title: "Sucesso!",

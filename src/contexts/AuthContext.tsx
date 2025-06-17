@@ -112,7 +112,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               type,
               leader_id,
               is_sub_department,
-              parent_department_id
+              parent_department_id,
+              church_id,
+              created_at
             )
           `)
           .eq('id', churchId)
@@ -126,7 +128,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             phone: church.phone,
             email: church.email,
             adminId: church.admin_id,
-            departments: church.departments || [],
+            departments: church.departments?.map(dept => ({
+              id: dept.id,
+              name: dept.name,
+              churchId: dept.church_id,
+              leaderId: dept.leader_id,
+              collaborators: [], // Will be loaded separately when needed
+              type: dept.type as any,
+              parentDepartmentId: dept.parent_department_id,
+              isSubDepartment: dept.is_sub_department,
+              createdAt: new Date(dept.created_at)
+            })) || [],
             serviceTypes: church.service_types || [],
             courses: [], // Will be loaded separately when needed
             createdAt: new Date(church.created_at)

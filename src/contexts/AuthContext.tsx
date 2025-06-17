@@ -22,6 +22,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         
         if (session?.user) {
+          // Check for OAuth errors in URL
+          const urlParams = new URLSearchParams(window.location.search);
+          const error = urlParams.get('error');
+          const errorDescription = urlParams.get('error_description');
+          
+          if (error) {
+            console.error('OAuth error detected:', error, errorDescription);
+            // Clean URL from error parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+          
           // Defer Supabase calls with setTimeout to prevent deadlocks
           setTimeout(() => {
             loadUserProfile(session.user.id);
@@ -57,6 +68,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('Loading user profile for:', userId);
       
+      // Get current auth user data
+      const { data: authUser } = await supabase.auth.getUser();
+      if (!authUser.user) {
+        console.error('No authenticated user found');
+        setIsLoading(false);
+        return;
+      }
+
       // Buscar perfil do usuário
       let { data: profile, error: profileError } = await supabase
         .from('profiles')
@@ -69,15 +88,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         // Se perfil não existe, criar um novo
         if (profileError.code === 'PGRST116') {
-          const { data: authUser } = await supabase.auth.getUser();
-          if (authUser.user) {
-            console.log('Creating new profile for user:', authUser.user.email);
+          console.log('Creating new profile for user:', authUser.user.email);
+          
+          // Extract name from user metadata or email
+          const name = authUser.user.user_metadata?.full_name || 
+                      authUser.user.user_metadata?.name || 
+                      authUser.user.user_metadata?.display_name ||
+                      authUser.user.email!.split('@')[0];
+
+          try {
             const { data: newProfile, error: createError } = await supabase
               .from('profiles')
               .insert({
                 id: authUser.user.id,
                 email: authUser.user.email!,
-                name: authUser.user.user_metadata?.full_name || authUser.user.user_metadata?.name || authUser.user.email!.split('@')[0],
+                name: name,
+                avatar: authUser.user.user_metadata?.avatar_url || authUser.user.user_metadata?.picture,
                 created_at: new Date().toISOString()
               })
               .select()
@@ -85,12 +111,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (createError) {
               console.error('Error creating profile:', createError);
-              setIsLoading(false);
-              return;
+              // Try to handle specific database errors
+              if (createError.code === '23505') {
+                console.log('Profile already exists, trying to fetch again...');
+                const { data: existingProfile, error: fetchError } = await supabase
+                  .from('profiles')
+                  .select('*')
+                  .eq('id', userId)
+                  .single();
+                
+                if (fetchError) {
+                  console.error('Error fetching existing profile:', fetchError);
+                  setIsLoading(false);
+                  return;
+                }
+                profile = existingProfile;
+              } else {
+                setIsLoading(false);
+                return;
+              }
+            } else {
+              // Usar o perfil recém-criado
+              profile = newProfile;
             }
-            
-            // Usar o perfil recém-criado
-            profile = newProfile;
+          } catch (insertError) {
+            console.error('Unexpected error creating profile:', insertError);
+            setIsLoading(false);
+            return;
           }
         } else {
           setIsLoading(false);

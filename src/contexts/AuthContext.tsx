@@ -29,8 +29,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           if (error) {
             console.error('OAuth error detected:', error, errorDescription);
-            // Clean URL from error parameters
-            window.history.replaceState({}, document.title, window.location.pathname);
+            // Clean URL from error parameters and redirect to root
+            window.history.replaceState({}, document.title, '/');
           }
           
           // Defer Supabase calls with setTimeout to prevent deadlocks
@@ -280,7 +280,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: userData.email,
       password: userData.email, // Temporary password, user should change it
       options: {
-        emailRedirectTo: `${window.location.origin}/dashboard`,
+        emailRedirectTo: window.location.origin, // Redirect to root instead of /dashboard
         data: {
           name: userData.name,
           full_name: userData.name

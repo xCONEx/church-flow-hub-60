@@ -99,7 +99,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       subscription.unsubscribe();
       clearTimeout(authTimeout);
     };
-  }, [user]);
+  }, []); // Remove user dependency to prevent infinite loop
 
   const loadUserData = async (authUser: SupabaseUser) => {
     // Prevent multiple concurrent loads

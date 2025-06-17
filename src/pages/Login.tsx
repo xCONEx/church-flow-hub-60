@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -30,35 +31,10 @@ export const Login = () => {
     confirmPassword: ''
   });
 
-  // Check for OAuth errors in URL on component mount
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const error = urlParams.get('error');
-    const errorDescription = urlParams.get('error_description');
-    
-    if (error) {
-      console.error('OAuth error detected:', error, errorDescription);
-      
-      let userFriendlyMessage = 'Erro na autenticação.';
-      if (errorDescription?.includes('Database error')) {
-        userFriendlyMessage = 'Erro no banco de dados. Tente novamente em alguns minutos.';
-      }
-      
-      toast({
-        title: "Erro na autenticação",
-        description: userFriendlyMessage,
-        variant: "destructive"
-      });
-      
-      // Clean URL from error parameters
-      window.history.replaceState({}, document.title, window.location.pathname);
-    }
-  }, []);
-
   // Redirect if already logged in
   useEffect(() => {
     if (user && !isLoading) {
-      console.log('User already logged in, redirecting...');
+      console.log('Login: User already logged in, redirecting...');
       if (user.role === 'master') {
         navigate('/master-dashboard', { replace: true });
       } else {
@@ -79,7 +55,7 @@ export const Login = () => {
         description: "Redirecionando..."
       });
     } catch (error: any) {
-      console.error('Login error:', error);
+      console.error('Login: Login error:', error);
       toast({
         title: "Erro no login",
         description: error.message || "Verifique suas credenciais.",
@@ -125,7 +101,7 @@ export const Login = () => {
         description: "Verifique seu email para confirmar."
       });
     } catch (error: any) {
-      console.error('Registration error:', error);
+      console.error('Login: Registration error:', error);
       toast({
         title: "Erro no cadastro",
         description: error.message || "Tente novamente.",
@@ -141,7 +117,7 @@ export const Login = () => {
     
     setIsSubmitting(true);
     try {
-      console.log('Iniciando login com Google...');
+      console.log('Login: Starting Google login...');
       
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -151,7 +127,7 @@ export const Login = () => {
       });
 
       if (error) {
-        console.error('Google login error:', error);
+        console.error('Login: Google login error:', error);
         toast({
           title: "Erro no login com Google",
           description: error.message,
@@ -159,7 +135,7 @@ export const Login = () => {
         });
       }
     } catch (error: any) {
-      console.error('Google login error:', error);
+      console.error('Login: Google login error:', error);
       toast({
         title: "Erro no login com Google",
         description: "Tente novamente.",

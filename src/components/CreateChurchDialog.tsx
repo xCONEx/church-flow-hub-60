@@ -20,9 +20,7 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
     name: '',
     address: '',
     phone: '',
-    email: '',
-    adminName: '',
-    adminPassword: '',
+    adminEmail: '',
   });
   const [isCreating, setIsCreating] = useState(false);
   
@@ -41,7 +39,7 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
       return;
     }
 
-    if (!formData.email.trim()) {
+    if (!formData.adminEmail.trim()) {
       toast({
         title: "Erro",
         description: "Email do administrador é obrigatório",
@@ -50,87 +48,58 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
       return;
     }
 
-    if (!formData.adminName.trim()) {
-      toast({
-        title: "Erro",
-        description: "Nome do administrador é obrigatório",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (!formData.adminPassword.trim() || formData.adminPassword.length < 6) {
-      toast({
-        title: "Erro",
-        description: "Senha deve ter pelo menos 6 caracteres",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       setIsCreating(true);
-      console.log('Creating admin user first...');
+      console.log('Searching for existing admin user with email:', formData.adminEmail);
       
-      // 1. Criar o usuário admin primeiro
-      const { data: authData, error: authError } = await supabase.auth.admin.createUser({
-        email: formData.email,
-        password: formData.adminPassword,
-        email_confirm: true,
-        user_metadata: {
-          name: formData.adminName,
-          full_name: formData.adminName,
-        }
-      });
-
-      if (authError || !authData.user) {
-        console.error('Error creating admin user:', authError);
-        throw new Error(authError?.message || 'Erro ao criar usuário administrador');
-      }
-
-      console.log('Admin user created:', authData.user.id);
-
-      // 2. Criar o perfil do admin
-      const { error: profileError } = await supabase
+      // 1. Buscar usuário existente pelo email
+      const { data: existingProfile, error: profileError } = await supabase
         .from('profiles')
-        .upsert({
-          id: authData.user.id,
-          name: formData.adminName,
-          email: formData.email,
-        });
+        .select('id, email, name')
+        .eq('email', formData.adminEmail)
+        .single();
 
-      if (profileError) {
-        console.error('Error creating profile:', profileError);
-        // Continuar mesmo se houver erro no perfil (será criado pelo trigger)
+      if (profileError || !existingProfile) {
+        toast({
+          title: "Erro",
+          description: "Usuário com este email não foi encontrado no sistema. O admin deve criar uma conta primeiro.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      // 3. Criar a igreja com o admin_id
+      console.log('Admin user found:', existingProfile.id);
+
+      // 2. Verificar se o usuário já é admin de outra igreja
+      const { data: existingRoles } = await supabase
+        .from('user_roles')
+        .select('role, church_id')
+        .eq('user_id', existingProfile.id)
+        .eq('role', 'admin');
+
+      if (existingRoles && existingRoles.length > 0) {
+        toast({
+          title: "Erro",
+          description: "Este usuário já é administrador de outra igreja.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // 3. Criar a igreja com os dados fornecidos
       const churchData = {
         name: formData.name,
         address: formData.address || null,
         phone: formData.phone || null,
-        email: formData.email,
-        adminId: authData.user.id, // Usar o ID do usuário criado
+        email: formData.adminEmail,
+        adminId: existingProfile.id,
       };
 
       await createChurch(churchData);
 
-      // 4. Adicionar o role de admin para o usuário
-      const { error: roleError } = await supabase
-        .from('user_roles')
-        .insert({
-          user_id: authData.user.id,
-          church_id: null, // Será atualizado quando a igreja for criada
-          role: 'admin'
-        });
-
-      if (roleError) {
-        console.error('Error creating admin role:', roleError);
-      }
-
       toast({
         title: "Sucesso!",
-        description: `Igreja criada com sucesso! Usuário admin: ${formData.email}`,
+        description: `Igreja "${formData.name}" criada com sucesso! Admin: ${existingProfile.name}`,
       });
       
       setIsOpen(false);
@@ -138,9 +107,7 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
         name: '', 
         address: '', 
         phone: '', 
-        email: '', 
-        adminName: '', 
-        adminPassword: '' 
+        adminEmail: '' 
       });
       
     } catch (error: any) {
@@ -173,7 +140,7 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
         <DialogHeader>
           <DialogTitle>Criar Nova Igreja</DialogTitle>
           <DialogDescription>
-            Preencha os dados da igreja e do administrador. Um novo usuário será criado automaticamente.
+            Preencha os dados da igreja e o email do administrador (que já deve ter conta no sistema).
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -199,54 +166,29 @@ export const CreateChurchDialog = ({ trigger }: CreateChurchDialogProps) => {
             />
           </div>
           
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="phone">Telefone</Label>
-              <Input
-                id="phone"
-                value={formData.phone}
-                onChange={(e) => handleInputChange('phone', e.target.value)}
-                placeholder="(11) 99999-9999"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="email">Email do Admin *</Label>
-              <Input
-                id="email"
-                type="email"
-                value={formData.email}
-                onChange={(e) => handleInputChange('email', e.target.value)}
-                placeholder="admin@igreja.com"
-                required
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="phone">Telefone</Label>
+            <Input
+              id="phone"
+              value={formData.phone}
+              onChange={(e) => handleInputChange('phone', e.target.value)}
+              placeholder="(11) 99999-9999"
+            />
           </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="adminName">Nome do Admin *</Label>
-              <Input
-                id="adminName"
-                value={formData.adminName}
-                onChange={(e) => handleInputChange('adminName', e.target.value)}
-                placeholder="João Silva"
-                required
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="adminPassword">Senha do Admin *</Label>
-              <Input
-                id="adminPassword"
-                type="password"
-                value={formData.adminPassword}
-                onChange={(e) => handleInputChange('adminPassword', e.target.value)}
-                placeholder="Mínimo 6 caracteres"
-                required
-                minLength={6}
-              />
-            </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="adminEmail">Email do Administrador *</Label>
+            <Input
+              id="adminEmail"
+              type="email"
+              value={formData.adminEmail}
+              onChange={(e) => handleInputChange('adminEmail', e.target.value)}
+              placeholder="admin@igreja.com"
+              required
+            />
+            <p className="text-sm text-gray-500">
+              O administrador deve já ter uma conta cadastrada no sistema.
+            </p>
           </div>
           
           <div className="flex justify-end space-x-2 pt-4">

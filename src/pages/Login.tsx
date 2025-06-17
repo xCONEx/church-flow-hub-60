@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -61,9 +60,9 @@ export const Login = () => {
     if (user && !isLoading) {
       console.log('User already logged in, redirecting...');
       if (user.role === 'master') {
-        navigate('/master-dashboard');
+        navigate('/master-dashboard', { replace: true });
       } else {
-        navigate('/dashboard');
+        navigate('/dashboard', { replace: true });
       }
     }
   }, [user, isLoading, navigate]);
@@ -77,13 +76,13 @@ export const Login = () => {
       await login(loginData.email, loginData.password);
       toast({
         title: "Login realizado com sucesso!",
-        description: "Redirecionando para o dashboard..."
+        description: "Redirecionando..."
       });
     } catch (error: any) {
       console.error('Login error:', error);
       toast({
         title: "Erro no login",
-        description: error.message || "Verifique suas credenciais e tente novamente.",
+        description: error.message || "Verifique suas credenciais.",
         variant: "destructive"
       });
     } finally {
@@ -122,20 +121,14 @@ export const Login = () => {
       });
       
       toast({
-        title: "Cadastro realizado com sucesso!",
-        description: "Verifique seu email para confirmar sua conta."
+        title: "Cadastro realizado!",
+        description: "Verifique seu email para confirmar."
       });
     } catch (error: any) {
       console.error('Registration error:', error);
-      let errorMessage = "Erro ao criar conta. Tente novamente.";
-      
-      if (error.message?.includes('already registered')) {
-        errorMessage = "Este email já está cadastrado. Tente fazer login.";
-      }
-      
       toast({
         title: "Erro no cadastro",
-        description: errorMessage,
+        description: error.message || "Tente novamente.",
         variant: "destructive"
       });
     } finally {
@@ -150,18 +143,10 @@ export const Login = () => {
     try {
       console.log('Iniciando login com Google...');
       
-      // Use only the root path for redirect
-      const redirectUrl = window.location.origin;
-      console.log('Redirect URL:', redirectUrl);
-      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: redirectUrl,
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          }
+          redirectTo: window.location.origin
         }
       });
 
@@ -172,17 +157,12 @@ export const Login = () => {
           description: error.message,
           variant: "destructive"
         });
-      } else {
-        toast({
-          title: "Redirecionando...",
-          description: "Você será redirecionado para o Google para fazer login."
-        });
       }
     } catch (error: any) {
       console.error('Google login error:', error);
       toast({
         title: "Erro no login com Google",
-        description: "Tente novamente mais tarde.",
+        description: "Tente novamente.",
         variant: "destructive"
       });
     } finally {

@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,28 +14,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     console.log('Initializing auth state listener...');
     
-    // Set up auth state listener FIRST
+    // Get initial session first
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email || 'no session');
+      setSession(session);
+      if (session?.user) {
+        loadUserProfile(session.user.id);
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email);
+        console.log('Auth state changed:', event, session?.user?.email || 'no session');
+        
+        // Handle OAuth errors from URL
+        if (typeof window !== 'undefined') {
+          const urlParams = new URLSearchParams(window.location.search);
+          const error = urlParams.get('error');
+          
+          if (error) {
+            console.error('OAuth error detected:', error);
+            // Clean URL from error parameters
+            window.history.replaceState({}, document.title, window.location.pathname);
+          }
+        }
+        
         setSession(session);
         
         if (session?.user) {
-          // Check for OAuth errors in URL
-          const urlParams = new URLSearchParams(window.location.search);
-          const error = urlParams.get('error');
-          const errorDescription = urlParams.get('error_description');
-          
-          if (error) {
-            console.error('OAuth error detected:', error, errorDescription);
-            // Clean URL from error parameters and redirect to root
-            window.history.replaceState({}, document.title, '/');
-          }
-          
-          // Defer Supabase calls with setTimeout to prevent deadlocks
-          setTimeout(() => {
-            loadUserProfile(session.user.id);
-          }, 0);
+          await loadUserProfile(session.user.id);
         } else {
           setUser(null);
           setChurch(null);
@@ -44,19 +53,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
     );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session?.user?.email);
-      setSession(session);
-      if (session?.user) {
-        setTimeout(() => {
-          loadUserProfile(session.user.id);
-        }, 0);
-      } else {
-        setIsLoading(false);
-      }
-    });
 
     return () => {
       console.log('Cleaning up auth subscription');
@@ -76,7 +72,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Buscar perfil do usuário
+      // Get or create user profile
       let { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
@@ -86,86 +82,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (profileError) {
         console.error('Error loading profile:', profileError);
         
-        // Se perfil não existe, criar um novo
+        // If profile doesn't exist, create it
         if (profileError.code === 'PGRST116') {
           console.log('Creating new profile for user:', authUser.user.email);
           
-          // Extract name from user metadata or email
           const name = authUser.user.user_metadata?.full_name || 
                       authUser.user.user_metadata?.name || 
-                      authUser.user.user_metadata?.display_name ||
                       authUser.user.email!.split('@')[0];
 
-          try {
-            const { data: newProfile, error: createError } = await supabase
-              .from('profiles')
-              .insert({
-                id: authUser.user.id,
-                email: authUser.user.email!,
-                name: name,
-                avatar: authUser.user.user_metadata?.avatar_url || authUser.user.user_metadata?.picture,
-                created_at: new Date().toISOString()
-              })
-              .select()
-              .single();
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .insert({
+              id: authUser.user.id,
+              email: authUser.user.email!,
+              name: name,
+              avatar: authUser.user.user_metadata?.avatar_url || authUser.user.user_metadata?.picture,
+              created_at: new Date().toISOString()
+            })
+            .select()
+            .single();
 
-            if (createError) {
-              console.error('Error creating profile:', createError);
-              // Try to handle specific database errors
-              if (createError.code === '23505') {
-                console.log('Profile already exists, trying to fetch again...');
-                const { data: existingProfile, error: fetchError } = await supabase
-                  .from('profiles')
-                  .select('*')
-                  .eq('id', userId)
-                  .single();
-                
-                if (fetchError) {
-                  console.error('Error fetching existing profile:', fetchError);
-                  setIsLoading(false);
-                  return;
-                }
-                profile = existingProfile;
-              } else {
-                setIsLoading(false);
-                return;
-              }
-            } else {
-              // Usar o perfil recém-criado
-              profile = newProfile;
-            }
-          } catch (insertError) {
-            console.error('Unexpected error creating profile:', insertError);
+          if (createError) {
+            console.error('Error creating profile:', createError);
             setIsLoading(false);
             return;
           }
+          
+          profile = newProfile;
         } else {
           setIsLoading(false);
           return;
         }
       }
 
-      // Buscar roles do usuário
-      const { data: userRoles, error: rolesError } = await supabase
+      // Load user roles
+      const { data: userRoles } = await supabase
         .from('user_roles')
         .select('role, church_id')
         .eq('user_id', userId);
 
-      if (rolesError) {
-        console.error('Error loading user roles:', rolesError);
-      }
-
-      // Determinar o role principal e igreja
       let primaryRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
 
       if (userRoles && userRoles.length > 0) {
-        // Priorizar master, depois roles por ordem hierárquica
         const masterRole = userRoles.find(r => r.role === 'master');
         if (masterRole) {
           primaryRole = 'master';
         } else {
-          // Pegar o role mais alto em qualquer igreja
           const roleHierarchy = ['admin', 'leader', 'collaborator', 'member'];
           for (const role of roleHierarchy) {
             const foundRole = userRoles.find(r => r.role === role && r.church_id);
@@ -178,28 +141,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Buscar dados da igreja se não for master
+      // Load church data if user has one
       let churchData: Church | null = null;
       if (churchId && primaryRole !== 'master') {
-        const { data: church, error: churchError } = await supabase
+        const { data: church } = await supabase
           .from('churches')
           .select(`
             *,
             departments:departments(
-              id,
-              name,
-              type,
-              leader_id,
-              is_sub_department,
-              parent_department_id,
-              church_id,
-              created_at
+              id, name, type, leader_id, is_sub_department, 
+              parent_department_id, church_id, created_at
             )
           `)
           .eq('id', churchId)
           .single();
 
-        if (!churchError && church) {
+        if (church) {
           churchData = {
             id: church.id,
             name: church.name,
@@ -212,14 +169,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               name: dept.name,
               churchId: dept.church_id,
               leaderId: dept.leader_id,
-              collaborators: [], // Will be loaded separately when needed
+              collaborators: [],
               type: dept.type as any,
               parentDepartmentId: dept.parent_department_id,
               isSubDepartment: dept.is_sub_department,
               createdAt: new Date(dept.created_at)
             })) || [],
             serviceTypes: church.service_types || [],
-            courses: [], // Will be loaded separately when needed
+            courses: [],
             createdAt: new Date(church.created_at)
           };
         }

@@ -31,6 +31,31 @@ export const Login = () => {
     confirmPassword: ''
   });
 
+  // Check for OAuth errors in URL on component mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    const errorDescription = urlParams.get('error_description');
+    
+    if (error) {
+      console.error('OAuth error detected:', error, errorDescription);
+      
+      let userFriendlyMessage = 'Erro na autenticação.';
+      if (errorDescription?.includes('Database error')) {
+        userFriendlyMessage = 'Erro no banco de dados. Tente novamente em alguns minutos.';
+      }
+      
+      toast({
+        title: "Erro na autenticação",
+        description: userFriendlyMessage,
+        variant: "destructive"
+      });
+      
+      // Clean URL from error parameters
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
+  }, []);
+
   // Redirect if already logged in
   useEffect(() => {
     if (user && !isLoading) {
@@ -124,10 +149,15 @@ export const Login = () => {
     setIsSubmitting(true);
     try {
       console.log('Iniciando login com Google...');
+      
+      // Use the current origin for redirect
+      const redirectUrl = `${window.location.origin}/dashboard`;
+      console.log('Redirect URL:', redirectUrl);
+      
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/dashboard`,
+          redirectTo: redirectUrl,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',

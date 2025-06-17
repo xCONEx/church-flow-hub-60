@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -23,10 +24,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) {
       console.error('AuthProvider: OAuth error detected:', error, errorDescription);
       window.history.replaceState({}, document.title, window.location.pathname);
-      
-      if (error === 'server_error' && errorDescription?.includes('Database error')) {
-        console.log('AuthProvider: Attempting to recover from database error...');
-      }
     }
     
     // Get initial session
@@ -68,9 +65,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           if (!user) {
             await loadUserData(session.user);
           }
-        } else if (session?.user && !isLoadingUserData) {
-          await loadUserData(session.user);
-        } else {
+        } else if (!session) {
           setUser(null);
           setChurch(null);
           setIsLoading(false);
@@ -81,7 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [user]);
 
   const loadUserData = async (authUser: SupabaseUser) => {
     // Prevent multiple concurrent loads
@@ -127,7 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
 
       if (!profile) {
-        console.log('AuthProvider: Profile not found, creating minimal user data');
+        console.log('AuthProvider: Profile not found after retries, creating minimal user data');
         
         // Create minimal user data as fallback
         const minimalUser: AppUser = {
@@ -152,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Get user roles - CORRIGIDO: não tentar criar role se já existe
+      // Get user roles
       let userRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
 
@@ -175,12 +170,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           console.log('AuthProvider: User role found:', userRole);
         } else {
-          // Se não tem roles E é o email master, significa que precisa ser criado
+          // Fallback baseado no email
           if (authUser.email === 'yuriadrskt@gmail.com') {
-            console.log('AuthProvider: Master user without role detected, should be handled by database trigger');
             userRole = 'master';
+            console.log('AuthProvider: Using master role fallback for yuriadrskt@gmail.com');
           } else {
-            console.log('AuthProvider: No roles found for user, using default member role');
+            console.log('AuthProvider: No roles found, using default member role');
           }
         }
       } catch (roleError) {

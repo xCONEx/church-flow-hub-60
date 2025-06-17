@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,6 +13,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   useEffect(() => {
     console.log('AuthProvider: Initializing authentication system...');
+    
+    // Check for OAuth errors in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    const errorDescription = urlParams.get('error_description');
+    
+    if (error) {
+      console.error('AuthProvider: OAuth error detected:', error, errorDescription);
+      // Clean URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Show user-friendly error
+      if (error === 'server_error' && errorDescription?.includes('Database error')) {
+        console.log('AuthProvider: Attempting to recover from database error...');
+        // Continue with normal flow to try to recover
+      }
+    }
     
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
@@ -48,6 +64,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setUser(null);
           setChurch(null);
           setIsLoading(false);
+        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
+          // Don't reload data on token refresh, just update session
+          console.log('AuthProvider: Token refreshed');
         } else if (session?.user) {
           await loadUserData(session.user);
         } else {
@@ -68,13 +87,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthProvider: Loading user data for:', authUser.email);
       setIsLoading(true);
       
-      // Wait a bit to ensure database trigger has run
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Try to get profile, retry if needed
+      // Try multiple times to ensure database trigger has executed
       let profile = null;
       let attempts = 0;
-      const maxAttempts = 3;
+      const maxAttempts = 5;
       
       while (!profile && attempts < maxAttempts) {
         attempts++;
@@ -88,13 +104,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
         if (profileData) {
           profile = profileData;
+          console.log('AuthProvider: Profile found successfully');
           break;
         }
         
         if (profileError) {
-          console.log('AuthProvider: Profile not found, creating...', profileError.message);
+          console.log(`AuthProvider: Profile not found (attempt ${attempts}), creating...`, profileError.message);
           
-          // Try to create profile manually
+          // Try to create profile manually with more robust error handling
           const profileToCreate = {
             id: authUser.id,
             email: authUser.email!,
@@ -105,6 +122,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             phone: authUser.user_metadata?.phone || null,
             avatar: authUser.user_metadata?.avatar_url || 
                    authUser.user_metadata?.picture || null,
+            experience: 'beginner',
+            skills: [],
+            language: 'pt-BR',
+            dark_mode: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString()
           };
@@ -113,7 +134,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           
           const { data: newProfile, error: createError } = await supabase
             .from('profiles')
-            .upsert(profileToCreate, { onConflict: 'id' })
+            .upsert(profileToCreate, { 
+              onConflict: 'id',
+              ignoreDuplicates: false 
+            })
             .select()
             .single();
 
@@ -123,12 +147,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             break;
           } else {
             console.error('AuthProvider: Error creating profile:', createError);
+            
+            // If it's a duplicate key error, try to fetch again
+            if (createError?.code === '23505') {
+              console.log('AuthProvider: Duplicate key error, retrying fetch...');
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              continue;
+            }
           }
         }
         
         // Wait before retry
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 1500));
         }
       }
 
@@ -136,17 +167,60 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         throw new Error('Failed to load or create user profile after multiple attempts');
       }
 
-      // Get user roles
+      // Get user roles with retry logic
       let userRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
 
       try {
-        const { data: userRoles, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('role, church_id')
-          .eq('user_id', authUser.id);
+        let roleAttempts = 0;
+        let userRoles = null;
+        
+        while (!userRoles && roleAttempts < 3) {
+          roleAttempts++;
+          
+          const { data: rolesData, error: rolesError } = await supabase
+            .from('user_roles')
+            .select('role, church_id')
+            .eq('user_id', authUser.id);
 
-        if (!rolesError && userRoles && userRoles.length > 0) {
+          if (!rolesError && rolesData && rolesData.length > 0) {
+            userRoles = rolesData;
+            break;
+          }
+          
+          if (rolesError) {
+            console.log('AuthProvider: Error fetching roles:', rolesError);
+          }
+          
+          // If no roles found, create default role
+          if (!rolesData || rolesData.length === 0) {
+            console.log('AuthProvider: Creating default member role...');
+            
+            const defaultRole = authUser.email === 'yuriadrskt@gmail.com' ? 'master' : 'member';
+            
+            const { data: newRole, error: roleCreateError } = await supabase
+              .from('user_roles')
+              .upsert({
+                user_id: authUser.id,
+                role: defaultRole,
+                church_id: null
+              }, { onConflict: 'user_id,church_id,role' })
+              .select();
+              
+            if (newRole && newRole.length > 0) {
+              userRoles = newRole;
+              break;
+            } else {
+              console.error('AuthProvider: Error creating default role:', roleCreateError);
+            }
+          }
+          
+          if (roleAttempts < 3) {
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+
+        if (userRoles && userRoles.length > 0) {
           // Find highest priority role
           const roleHierarchy = ['master', 'admin', 'leader', 'collaborator', 'member'];
           for (const role of roleHierarchy) {
@@ -157,29 +231,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               break;
             }
           }
-        } else if (!userRoles || userRoles.length === 0) {
-          // Create default member role if none exists
-          console.log('AuthProvider: Creating default member role...');
-          await supabase
-            .from('user_roles')
-            .upsert({
-              user_id: authUser.id,
-              role: 'member',
-              church_id: null
-            });
-        }
-
-        // Special handling for master user
-        if (authUser.email === 'yuriadrskt@gmail.com') {
-          userRole = 'master';
-          
-          await supabase
-            .from('user_roles')
-            .upsert({
-              user_id: authUser.id,
-              role: 'master',
-              church_id: null
-            }, { onConflict: 'user_id,church_id,role' });
         }
       } catch (roleError) {
         console.warn('AuthProvider: Error with user roles, using default member role:', roleError);
@@ -245,11 +296,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('AuthProvider: User data loaded successfully:', userData.email, userData.role);
       setUser(userData);
-      setChurch(churchData);
       
     } catch (error) {
       console.error('AuthProvider: Critical error loading user data:', error);
-      // Don't throw, just log and continue
+      // Don't throw, just log and continue with limited functionality
+      
+      // Try to create minimal user data
+      try {
+        const minimalUser: AppUser = {
+          id: authUser.id,
+          email: authUser.email!,
+          name: authUser.user_metadata?.full_name || authUser.email!.split('@')[0],
+          phone: null,
+          role: authUser.email === 'yuriadrskt@gmail.com' ? 'master' : 'member',
+          churchId: undefined,
+          avatar: authUser.user_metadata?.avatar_url || null,
+          experience: 'beginner',
+          skills: [],
+          language: 'pt-BR',
+          darkMode: false,
+          joinedAt: new Date(),
+          lastActive: new Date()
+        };
+        
+        console.log('AuthProvider: Setting minimal user data as fallback');
+        setUser(minimalUser);
+      } catch (fallbackError) {
+        console.error('AuthProvider: Even fallback user creation failed:', fallbackError);
+      }
     } finally {
       setIsLoading(false);
     }

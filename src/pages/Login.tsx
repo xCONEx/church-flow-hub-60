@@ -150,8 +150,8 @@ export const Login = () => {
     try {
       console.log('Iniciando login com Google...');
       
-      // Use the current origin for redirect
-      const redirectUrl = `${window.location.origin}/dashboard`;
+      // Use only the root path for redirect
+      const redirectUrl = window.location.origin;
       console.log('Redirect URL:', redirectUrl);
       
       const { error } = await supabase.auth.signInWithOAuth({

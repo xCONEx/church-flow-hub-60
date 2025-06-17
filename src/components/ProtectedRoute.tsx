@@ -1,55 +1,41 @@
 
+import React from 'react';
 import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { User } from '@/types';
+import { Church } from 'lucide-react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
   allowedRoles?: User['role'][];
-  requireChurch?: boolean;
 }
 
-export const ProtectedRoute = ({ 
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ 
   children, 
-  allowedRoles = ['admin', 'leader', 'collaborator', 'member'],
-  requireChurch = false 
-}: ProtectedRouteProps) => {
-  const { user, church, isLoading } = useAuth();
+  allowedRoles = [] 
+}) => {
+  const { user, isLoading } = useAuth();
 
+  // Show loading while checking authentication
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-purple-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <Church className="h-12 w-12 text-blue-600 mx-auto mb-4 animate-pulse" />
+          <p className="text-gray-600">Verificando autenticação...</p>
+        </div>
       </div>
     );
   }
 
+  // Redirect to login if not authenticated
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
-  // Master tem acesso a tudo, exceto rotas específicas que não são para ele
-  if (user.role === 'master') {
-    // Master só pode acessar master-dashboard, profile, settings e logout
-    const masterOnlyRoutes = ['/master-dashboard', '/profile', '/settings'];
-    const currentPath = window.location.pathname;
-    
-    // Se está tentando acessar uma rota que não é específica do master
-    if (!masterOnlyRoutes.includes(currentPath) && currentPath !== '/') {
-      return <Navigate to="/master-dashboard" replace />;
-    }
-    
-    return <>{children}</>;
-  }
-
-  // Para outros usuários, verificar se o role está permitido
-  if (!allowedRoles.includes(user.role)) {
+  // Check if user has required role
+  if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
     return <Navigate to="/unauthorized" replace />;
-  }
-
-  // Verificar se precisa de igreja (não se aplica ao master)
-  if (requireChurch && !church) {
-    return <Navigate to="/setup-church" replace />;
   }
 
   return <>{children}</>;

@@ -16,7 +16,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthProvider: Initializing...');
     
     // Get initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session }, error }) => {
+      if (error) {
+        console.error('AuthProvider: Error getting session:', error);
+        setIsLoading(false);
+        return;
+      }
+      
       console.log('AuthProvider: Initial session:', session?.user?.email || 'no session');
       setSession(session);
       if (session?.user) {
@@ -51,6 +57,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const loadUserData = async (authUser: SupabaseUser) => {
     try {
       console.log('AuthProvider: Loading user data for:', authUser.email);
+      setIsLoading(true);
       
       // Check if profile exists
       let { data: profile, error: profileError } = await supabase
@@ -60,7 +67,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       // If profile doesn't exist, create it
-      if (profileError || !profile) {
+      if (profileError && profileError.code === 'PGRST116') {
         console.log('AuthProvider: Creating profile for user:', authUser.email);
         
         const name = authUser.user_metadata?.full_name || 
@@ -88,13 +95,27 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         
         profile = newProfile;
         console.log('AuthProvider: Profile created successfully');
+      } else if (profileError) {
+        console.error('AuthProvider: Error loading profile:', profileError);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!profile) {
+        console.error('AuthProvider: No profile found and could not create one');
+        setIsLoading(false);
+        return;
       }
 
       // Get user roles
-      const { data: userRoles } = await supabase
+      const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
         .select('role, church_id')
         .eq('user_id', authUser.id);
+
+      if (rolesError) {
+        console.error('AuthProvider: Error loading user roles:', rolesError);
+      }
 
       let primaryRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
@@ -131,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Load church data if user belongs to one
       let churchData: Church | null = null;
       if (churchId && primaryRole !== 'master') {
-        const { data: church } = await supabase
+        const { data: church, error: churchError } = await supabase
           .from('churches')
           .select(`
             *,
@@ -140,7 +161,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .eq('id', churchId)
           .single();
 
-        if (church) {
+        if (churchError) {
+          console.error('AuthProvider: Error loading church data:', churchError);
+        } else if (church) {
           churchData = {
             id: church.id,
             name: church.name,
@@ -185,9 +208,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthProvider: User data loaded successfully:', userData.email, userData.role);
       setUser(userData);
       setChurch(churchData);
-      setIsLoading(false);
+      
     } catch (error) {
       console.error('AuthProvider: Error loading user data:', error);
+    } finally {
       setIsLoading(false);
     }
   };
@@ -196,53 +220,73 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(true);
     console.log('AuthProvider: Attempting login for:', email);
     
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
 
-    if (error) {
-      console.error('AuthProvider: Login error:', error);
+      if (error) {
+        console.error('AuthProvider: Login error:', error);
+        throw error;
+      }
+      
+      console.log('AuthProvider: Login successful for:', email);
+    } catch (error) {
       setIsLoading(false);
       throw error;
     }
-    
-    console.log('AuthProvider: Login successful');
   };
 
   const register = async (userData: { name: string; email: string; phone?: string; password: string }) => {
     setIsLoading(true);
     console.log('AuthProvider: Attempting registration for:', userData.email);
 
-    const { data, error } = await supabase.auth.signUp({
-      email: userData.email,
-      password: userData.password,
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: {
-          name: userData.name,
-          full_name: userData.name,
-          phone: userData.phone
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: {
+            name: userData.name,
+            full_name: userData.name,
+            phone: userData.phone
+          }
         }
+      });
+
+      if (error) {
+        console.error('AuthProvider: Registration error:', error);
+        throw error;
       }
-    });
 
-    if (error) {
-      console.error('AuthProvider: Registration error:', error);
-      setIsLoading(false);
+      console.log('AuthProvider: Registration successful for:', userData.email);
+      
+      // If user is confirmed immediately, they will be automatically logged in
+      if (data.user && !data.user.email_confirmed_at) {
+        console.log('AuthProvider: User needs email confirmation');
+      }
+      
+    } catch (error) {
       throw error;
+    } finally {
+      setIsLoading(false);
     }
-
-    console.log('AuthProvider: Registration successful for:', userData.email);
-    setIsLoading(false);
   };
 
   const logout = async () => {
     console.log('AuthProvider: Logging out user');
-    const { error } = await supabase.auth.signOut();
-    if (error) {
-      console.error('AuthProvider: Logout error:', error);
-      throw error;
+    setIsLoading(true);
+    
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('AuthProvider: Logout error:', error);
+        throw error;
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 

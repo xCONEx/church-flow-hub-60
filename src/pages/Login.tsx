@@ -93,18 +93,40 @@ export const Login = () => {
       await register({
         name: registerData.name,
         email: registerData.email,
-        phone: registerData.phone
+        phone: registerData.phone,
+        password: registerData.password
       });
       
       toast({
         title: "Cadastro realizado!",
-        description: "Verifique seu email para confirmar."
+        description: "Verifique seu email para confirmar sua conta."
+      });
+
+      // Clear form after successful registration
+      setRegisterData({
+        name: '',
+        email: '',
+        phone: '',
+        password: '',
+        confirmPassword: ''
       });
     } catch (error: any) {
       console.error('Login: Registration error:', error);
+      
+      let errorMessage = "Tente novamente.";
+      if (error.message.includes("User already registered")) {
+        errorMessage = "Este email já está cadastrado. Tente fazer login.";
+      } else if (error.message.includes("Invalid email")) {
+        errorMessage = "Email inválido.";
+      } else if (error.message.includes("Password")) {
+        errorMessage = "Senha deve ter pelo menos 6 caracteres.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erro no cadastro",
-        description: error.message || "Tente novamente.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -268,6 +290,7 @@ export const Login = () => {
                       value={registerData.name}
                       onChange={(e) => setRegisterData(prev => ({ ...prev, name: e.target.value }))}
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -284,6 +307,7 @@ export const Login = () => {
                       value={registerData.email}
                       onChange={(e) => setRegisterData(prev => ({ ...prev, email: e.target.value }))}
                       required
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -299,6 +323,7 @@ export const Login = () => {
                       className="pl-10"
                       value={registerData.phone}
                       onChange={(e) => setRegisterData(prev => ({ ...prev, phone: e.target.value }))}
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -316,6 +341,7 @@ export const Login = () => {
                       onChange={(e) => setRegisterData(prev => ({ ...prev, password: e.target.value }))}
                       required
                       minLength={6}
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -333,6 +359,7 @@ export const Login = () => {
                       onChange={(e) => setRegisterData(prev => ({ ...prev, confirmPassword: e.target.value }))}
                       required
                       minLength={6}
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>

@@ -1,5 +1,3 @@
-
-
 export interface User {
   id: string;
   email: string;
@@ -215,9 +213,8 @@ export interface AuthContextType {
   user: User | null;
   church: Church | null;
   login: (email: string, password: string) => Promise<void>;
-  register: (userData: Partial<User>) => Promise<void>;
+  register: (userData: Partial<User> & { password: string }) => Promise<void>;
   logout: () => void;
   updateUser: (userData: Partial<User>) => Promise<void>;
   isLoading: boolean;
 }
-

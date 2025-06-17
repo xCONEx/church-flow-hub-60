@@ -39,6 +39,7 @@ export const Register = () => {
         name: formData.name,
         email: formData.email,
         phone: formData.phone,
+        password: formData.password,
       });
       toast({
         title: "Cadastro realizado com sucesso!",

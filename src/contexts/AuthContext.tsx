@@ -79,25 +79,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                       authUser.user.user_metadata?.name || 
                       authUser.user.email!.split('@')[0];
 
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .insert({
-              id: authUser.user.id,
-              email: authUser.user.email!,
-              name: name,
-              avatar: authUser.user.user_metadata?.avatar_url || authUser.user.user_metadata?.picture,
-              created_at: new Date().toISOString()
-            })
-            .select()
-            .single();
+          try {
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert({
+                id: authUser.user.id,
+                email: authUser.user.email!,
+                name: name,
+                avatar: authUser.user.user_metadata?.avatar_url || authUser.user.user_metadata?.picture,
+                created_at: new Date().toISOString()
+              })
+              .select()
+              .single();
 
-          if (createError) {
-            console.error('AuthProvider: Error creating profile:', createError);
+            if (createError) {
+              console.error('AuthProvider: Error creating profile:', createError);
+              throw createError;
+            }
+            
+            profile = newProfile;
+            console.log('AuthProvider: Profile created successfully:', profile);
+          } catch (createProfileError) {
+            console.error('AuthProvider: Failed to create profile:', createProfileError);
             setIsLoading(false);
             return;
           }
-          
-          profile = newProfile;
         } else {
           setIsLoading(false);
           return;
@@ -214,7 +220,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // User will be loaded automatically by onAuthStateChange
   };
 
-  const register = async (userData: Partial<AppUser>) => {
+  const register = async (userData: Partial<AppUser> & { password: string }) => {
     setIsLoading(true);
     console.log('AuthProvider: Attempting registration for:', userData.email);
 
@@ -222,20 +228,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw new Error('Email e nome são obrigatórios');
     }
 
-    const { error } = await supabase.auth.signUp({
-      email: userData.email,
-      password: userData.email, // Temporary password, user should change it
-      options: {
-        emailRedirectTo: window.location.origin,
-        data: {
-          name: userData.name,
-          full_name: userData.name
-        }
-      }
-    });
+    if (!userData.password || userData.password.length < 6) {
+      throw new Error('Senha deve ter pelo menos 6 caracteres');
+    }
 
-    if (error) {
-      console.error('AuthProvider: Registration error:', error);
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          emailRedirectTo: window.location.origin,
+          data: {
+            name: userData.name,
+            full_name: userData.name,
+            phone: userData.phone
+          }
+        }
+      });
+
+      if (error) {
+        console.error('AuthProvider: Registration error:', error);
+        setIsLoading(false);
+        throw error;
+      }
+
+      console.log('AuthProvider: Registration successful:', data);
+      setIsLoading(false);
+    } catch (error) {
+      console.error('AuthProvider: Registration failed:', error);
       setIsLoading(false);
       throw error;
     }

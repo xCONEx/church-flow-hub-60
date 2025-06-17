@@ -131,6 +131,8 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       setIsLoading(true);
       
+      // Para resolver o erro TypeScript, vamos definir um admin_id padrão
+      // Você pode ajustar isso conforme sua lógica de negócio
       const { data, error } = await supabase
         .from('churches')
         .insert({
@@ -138,6 +140,7 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           address: churchData.address,
           phone: churchData.phone,
           email: churchData.email,
+          admin_id: churchData.adminId || null, // Campo obrigatório corrigido
           service_types: churchData.serviceTypes || [],
         })
         .select()
@@ -172,6 +175,7 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           address: data.address,
           phone: data.phone,
           email: data.email,
+          admin_id: data.adminId, // Campo corrigido
           service_types: data.serviceTypes,
         })
         .eq('id', churchId);

@@ -13,18 +13,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    console.log('AuthProvider: Initializing with better error handling...');
+    console.log('AuthProvider: Initializing authentication system...');
     
     // Get initial session
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
-        console.error('AuthProvider: Error getting session:', error);
+        console.error('AuthProvider: Error getting initial session:', error);
         setIsLoading(false);
         return;
       }
       
-      console.log('AuthProvider: Initial session:', session?.user?.email || 'no session');
+      console.log('AuthProvider: Initial session found:', session?.user?.email || 'no session');
       setSession(session);
+      
       if (session?.user) {
         loadUserData(session.user);
       } else {
@@ -32,14 +33,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    // Listen for auth changes
+    // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('AuthProvider: Auth state changed:', event, session?.user?.email || 'no session');
         
         setSession(session);
         
-        if (session?.user) {
+        if (event === 'SIGNED_IN' && session?.user) {
+          console.log('AuthProvider: User signed in, loading data...');
+          await loadUserData(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          console.log('AuthProvider: User signed out');
+          setUser(null);
+          setChurch(null);
+          setIsLoading(false);
+        } else if (session?.user) {
           await loadUserData(session.user);
         } else {
           setUser(null);
@@ -59,49 +68,75 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('AuthProvider: Loading user data for:', authUser.email);
       setIsLoading(true);
       
-      // Simpler approach - just try to get or create profile
-      let { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', authUser.id)
-        .single();
-
-      // If profile doesn't exist, create it with minimal data
-      if (profileError || !profile) {
-        console.log('AuthProvider: Creating new profile for:', authUser.email);
+      // Wait a bit to ensure database trigger has run
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Try to get profile, retry if needed
+      let profile = null;
+      let attempts = 0;
+      const maxAttempts = 3;
+      
+      while (!profile && attempts < maxAttempts) {
+        attempts++;
+        console.log(`AuthProvider: Loading profile attempt ${attempts}...`);
         
-        const profileData = {
-          id: authUser.id,
-          email: authUser.email!,
-          name: authUser.user_metadata?.full_name || 
-                authUser.user_metadata?.name || 
-                authUser.email!.split('@')[0],
-          phone: authUser.user_metadata?.phone || null,
-          avatar: authUser.user_metadata?.avatar_url || 
-                 authUser.user_metadata?.picture || null,
-          created_at: new Date().toISOString()
-        };
-
-        const { data: newProfile, error: createError } = await supabase
+        const { data: profileData, error: profileError } = await supabase
           .from('profiles')
-          .upsert(profileData)
-          .select()
+          .select('*')
+          .eq('id', authUser.id)
           .single();
 
-        if (createError) {
-          console.error('AuthProvider: Error creating profile:', createError);
-          throw createError;
+        if (profileData) {
+          profile = profileData;
+          break;
         }
         
-        profile = newProfile;
-        console.log('AuthProvider: Profile created successfully');
+        if (profileError) {
+          console.log('AuthProvider: Profile not found, creating...', profileError.message);
+          
+          // Try to create profile manually
+          const profileToCreate = {
+            id: authUser.id,
+            email: authUser.email!,
+            name: authUser.user_metadata?.full_name || 
+                  authUser.user_metadata?.name || 
+                  authUser.user_metadata?.given_name ||
+                  authUser.email!.split('@')[0],
+            phone: authUser.user_metadata?.phone || null,
+            avatar: authUser.user_metadata?.avatar_url || 
+                   authUser.user_metadata?.picture || null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          };
+
+          console.log('AuthProvider: Creating profile with data:', profileToCreate);
+          
+          const { data: newProfile, error: createError } = await supabase
+            .from('profiles')
+            .upsert(profileToCreate, { onConflict: 'id' })
+            .select()
+            .single();
+
+          if (newProfile) {
+            profile = newProfile;
+            console.log('AuthProvider: Profile created successfully');
+            break;
+          } else {
+            console.error('AuthProvider: Error creating profile:', createError);
+          }
+        }
+        
+        // Wait before retry
+        if (attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
       }
 
       if (!profile) {
-        throw new Error('Could not load or create user profile');
+        throw new Error('Failed to load or create user profile after multiple attempts');
       }
 
-      // Get user roles with better error handling
+      // Get user roles
       let userRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
 
@@ -112,7 +147,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .eq('user_id', authUser.id);
 
         if (!rolesError && userRoles && userRoles.length > 0) {
-          // Find highest role
+          // Find highest priority role
           const roleHierarchy = ['master', 'admin', 'leader', 'collaborator', 'member'];
           for (const role of roleHierarchy) {
             const foundRole = userRoles.find(r => r.role === role);
@@ -122,9 +157,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               break;
             }
           }
+        } else if (!userRoles || userRoles.length === 0) {
+          // Create default member role if none exists
+          console.log('AuthProvider: Creating default member role...');
+          await supabase
+            .from('user_roles')
+            .upsert({
+              user_id: authUser.id,
+              role: 'member',
+              church_id: null
+            });
         }
 
-        // For master user, ensure role exists
+        // Special handling for master user
         if (authUser.email === 'yuriadrskt@gmail.com') {
           userRole = 'master';
           
@@ -134,10 +179,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               user_id: authUser.id,
               role: 'master',
               church_id: null
-            });
+            }, { onConflict: 'user_id,church_id,role' });
         }
       } catch (roleError) {
-        console.warn('AuthProvider: Error loading user roles, using default:', roleError);
+        console.warn('AuthProvider: Error with user roles, using default member role:', roleError);
       }
 
       // Load church data if needed
@@ -203,8 +248,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setChurch(churchData);
       
     } catch (error) {
-      console.error('AuthProvider: Error in loadUserData:', error);
-      // Don't throw, just set loading to false
+      console.error('AuthProvider: Critical error loading user data:', error);
+      // Don't throw, just log and continue
     } finally {
       setIsLoading(false);
     }
@@ -214,6 +259,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthProvider: Attempting login for:', email);
     
     try {
+      setIsLoading(true);
+      
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -225,8 +272,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       console.log('AuthProvider: Login successful for:', email);
+      // Don't set loading to false here, let the auth state change handler do it
     } catch (error) {
       console.error('AuthProvider: Login failed:', error);
+      setIsLoading(false);
       throw error;
     }
   };
@@ -235,11 +284,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthProvider: Attempting registration for:', userData.email);
 
     try {
+      setIsLoading(true);
+      
       const { data, error } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
         options: {
-          emailRedirectTo: window.location.origin,
+          emailRedirectTo: `${window.location.origin}/`,
           data: {
             name: userData.name,
             full_name: userData.name,
@@ -262,6 +313,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error('AuthProvider: Registration failed:', error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -269,6 +322,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthProvider: Logging out user');
     
     try {
+      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
       if (error) {
         console.error('AuthProvider: Logout error:', error);

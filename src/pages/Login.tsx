@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AlertCircle, Church, Mail, Lock, User, Phone } from 'lucide-react';
+import { AlertCircle, Church, Mail, Lock, User, Phone, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +15,7 @@ export const Login = () => {
   const navigate = useNavigate();
   const { login, register, user, isLoading } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [activeTab, setActiveTab] = useState('login');
   
   // Login form state
   const [loginData, setLoginData] = useState({
@@ -43,9 +44,38 @@ export const Login = () => {
     }
   }, [user, isLoading, navigate]);
 
+  // Handle URL hash for OAuth redirects
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (hash.includes('access_token') || hash.includes('error')) {
+        console.log('Login: OAuth redirect detected, processing...');
+        // The supabase client will handle this automatically
+        // Clear the hash to clean up the URL
+        window.location.hash = '';
+      }
+    };
+
+    handleHashChange();
+    window.addEventListener('hashchange', handleHashChange);
+    
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    if (!loginData.email || !loginData.password) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha email e senha.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     setIsSubmitting(true);
     try {
@@ -56,9 +86,19 @@ export const Login = () => {
       });
     } catch (error: any) {
       console.error('Login: Login error:', error);
+      
+      let errorMessage = "Verifique suas credenciais.";
+      if (error.message.includes("Invalid login credentials")) {
+        errorMessage = "Email ou senha incorretos.";
+      } else if (error.message.includes("Email not confirmed")) {
+        errorMessage = "Confirme seu email antes de fazer login.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erro no login",
-        description: error.message || "Verifique suas credenciais.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -69,6 +109,15 @@ export const Login = () => {
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSubmitting) return;
+
+    if (!registerData.name || !registerData.email || !registerData.password) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Por favor, preencha todos os campos obrigatórios.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     if (registerData.password !== registerData.confirmPassword) {
       toast({
@@ -102,7 +151,7 @@ export const Login = () => {
         description: "Verifique seu email para confirmar sua conta."
       });
 
-      // Clear form after successful registration
+      // Clear form and switch to login tab
       setRegisterData({
         name: '',
         email: '',
@@ -110,6 +159,7 @@ export const Login = () => {
         password: '',
         confirmPassword: ''
       });
+      setActiveTab('login');
     } catch (error: any) {
       console.error('Login: Registration error:', error);
       
@@ -139,28 +189,43 @@ export const Login = () => {
     
     setIsSubmitting(true);
     try {
-      console.log('Login: Starting Google login...');
+      console.log('Login: Initiating Google OAuth...');
       
-      const { error } = await supabase.auth.signInWithOAuth({
+      // Get current URL for redirect
+      const redirectTo = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: window.location.origin
+          redirectTo,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          }
         }
       });
 
       if (error) {
-        console.error('Login: Google login error:', error);
-        toast({
-          title: "Erro no login com Google",
-          description: error.message,
-          variant: "destructive"
-        });
+        console.error('Login: Google OAuth error:', error);
+        throw error;
       }
+
+      console.log('Login: Google OAuth initiated successfully');
+      // Don't show success message here as user will be redirected
+      
     } catch (error: any) {
-      console.error('Login: Google login error:', error);
+      console.error('Login: Google login failed:', error);
+      
+      let errorMessage = "Tente novamente ou use email/senha.";
+      if (error.message.includes("popup")) {
+        errorMessage = "Popup bloqueado. Permita popups e tente novamente.";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: "Erro no login com Google",
-        description: "Tente novamente.",
+        description: errorMessage,
         variant: "destructive"
       });
     } finally {
@@ -173,7 +238,7 @@ export const Login = () => {
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
           <Church className="h-12 w-12 text-blue-600 mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-600">Carregando...</p>
+          <p className="text-gray-600">Verificando autenticação...</p>
         </div>
       </div>
     );
@@ -195,7 +260,7 @@ export const Login = () => {
         </CardHeader>
         
         <CardContent>
-          <Tabs defaultValue="login" className="w-full">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Entrar</TabsTrigger>
               <TabsTrigger value="register">Cadastrar</TabsTrigger>
@@ -210,12 +275,16 @@ export const Login = () => {
                   onClick={handleGoogleLogin}
                   disabled={isSubmitting}
                 >
-                  <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
-                    <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="currentColor" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                    <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                  </svg>
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <svg className="w-4 h-4 mr-2" viewBox="0 0 24 24">
+                      <path fill="currentColor" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="current Color" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="currentColor" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                      <path fill="currentColor" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                  )}
                   {isSubmitting ? 'Conectando...' : 'Entrar com Google'}
                 </Button>
                 
@@ -225,7 +294,7 @@ export const Login = () => {
                   </div>
                   <div className="relative flex justify-center text-xs uppercase">
                     <span className="bg-white px-2 text-muted-foreground">
-                      Ou continue com
+                      Ou continue com email
                     </span>
                   </div>
                 </div>
@@ -271,7 +340,14 @@ export const Login = () => {
                   className="w-full"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Entrando...' : 'Entrar'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Entrando...
+                    </>
+                  ) : (
+                    'Entrar'
+                  )}
                 </Button>
               </form>
             </TabsContent>
@@ -279,7 +355,7 @@ export const Login = () => {
             <TabsContent value="register" className="space-y-4">
               <form onSubmit={handleRegister} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="register-name">Nome Completo</Label>
+                  <Label htmlFor="register-name">Nome Completo *</Label>
                   <div className="relative">
                     <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
@@ -296,7 +372,7 @@ export const Login = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="register-email">Email</Label>
+                  <Label htmlFor="register-email">Email *</Label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
@@ -313,7 +389,7 @@ export const Login = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="register-phone">Telefone (opcional)</Label>
+                  <Label htmlFor="register-phone">Telefone</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
@@ -329,7 +405,7 @@ export const Login = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="register-password">Senha</Label>
+                  <Label htmlFor="register-password">Senha *</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
@@ -347,7 +423,7 @@ export const Login = () => {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="register-confirm-password">Confirmar Senha</Label>
+                  <Label htmlFor="register-confirm-password">Confirmar Senha *</Label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
                     <Input
@@ -369,7 +445,14 @@ export const Login = () => {
                   className="w-full"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? 'Criando conta...' : 'Criar conta'}
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Criando conta...
+                    </>
+                  ) : (
+                    'Criar conta'
+                  )}
                 </Button>
               </form>
             </TabsContent>
@@ -379,7 +462,7 @@ export const Login = () => {
             <div className="flex items-center justify-center space-x-1">
               <AlertCircle className="h-4 w-4" />
               <span>
-                Primeira vez? Comece criando sua conta ou faça login com Google.
+                Problemas? Tente o login com Google ou crie uma nova conta.
               </span>
             </div>
           </div>

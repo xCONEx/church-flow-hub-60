@@ -15,10 +15,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthProvider: Initializing authentication system...');
     
     let mounted = true;
+    let authInitialized = false;
     
     const initAuth = async () => {
       try {
-        // Get initial session
+        if (authInitialized) return;
+        authInitialized = true;
+        
+        console.log('AuthProvider: Getting initial session...');
         const { data: { session: initialSession }, error } = await supabase.auth.getSession();
         
         if (error) {
@@ -28,6 +32,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           return;
         }
+        
+        console.log('AuthProvider: Initial session:', initialSession ? 'Found' : 'Not found');
         
         if (mounted) {
           setSession(initialSession);
@@ -81,12 +87,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []); // Removido as dependências que causavam o loop
+  }, []); // Removido dependências para evitar loops
 
   const loadUserData = async (authUser: SupabaseUser) => {
+    if (!authUser) {
+      setIsLoading(false);
+      return;
+    }
+
     try {
       console.log('AuthProvider: Loading user data for:', authUser.email);
-      setIsLoading(true);
+      
+      // Timeout para evitar loading infinito
+      const timeout = setTimeout(() => {
+        console.warn('AuthProvider: Loading user data timeout');
+        setIsLoading(false);
+      }, 10000);
       
       // Load profile
       const { data: profile, error: profileError } = await supabase
@@ -94,6 +110,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .select('*')
         .eq('id', authUser.id)
         .single();
+
+      clearTimeout(timeout);
 
       if (profileError || !profile) {
         console.log('AuthProvider: Profile not found, creating fallback user');
@@ -103,15 +121,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('AuthProvider: Profile found successfully');
 
-      // Get user roles
+      // Get user roles with proper error handling
       let userRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
 
       try {
-        const { data: rolesData } = await supabase
+        const { data: rolesData, error: rolesError } = await supabase
           .from('user_roles')
           .select('role, church_id')
           .eq('user_id', authUser.id);
+
+        if (rolesError) {
+          console.error('AuthProvider: Error loading roles:', rolesError);
+        }
 
         if (rolesData && rolesData.length > 0) {
           // Find highest priority role
@@ -121,10 +143,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (foundRole) {
               userRole = foundRole.role as AppUser['role'];
               churchId = foundRole.church_id;
+              console.log('AuthProvider: User role found:', userRole, 'Church ID:', churchId);
               break;
             }
           }
-          console.log('AuthProvider: User role found:', userRole);
         } else {
           // Fallback for master user
           if (authUser.email === 'yuriadrskt@gmail.com') {
@@ -139,11 +161,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Load church data if needed (only if not master and has churchId)
+      // Load church data if needed (only if has churchId and not master)
       let churchData: Church | null = null;
       if (churchId && userRole !== 'master') {
         try {
-          const { data: church } = await supabase
+          const { data: church, error: churchError } = await supabase
             .from('churches')
             .select(`
               *,
@@ -152,7 +174,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .eq('id', churchId)
             .single();
 
-          if (church) {
+          if (churchError) {
+            console.warn('AuthProvider: Error loading church:', churchError);
+          } else if (church) {
             churchData = {
               id: church.id,
               name: church.name,

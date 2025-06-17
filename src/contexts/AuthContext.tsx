@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -16,6 +15,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     console.log('AuthProvider: Initializing authentication system...');
     
+    // Set timeout to prevent infinite loading
+    const authTimeout = setTimeout(() => {
+      console.warn('AuthProvider: Auth check timeout, setting loading to false');
+      setIsLoading(false);
+    }, 10000); // 10 seconds timeout
+    
     // Check for OAuth errors in URL
     const urlParams = new URLSearchParams(window.location.search);
     const error = urlParams.get('error');
@@ -24,25 +29,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (error) {
       console.error('AuthProvider: OAuth error detected:', error, errorDescription);
       window.history.replaceState({}, document.title, window.location.pathname);
+      clearTimeout(authTimeout);
+      setIsLoading(false);
+      return;
     }
     
-    // Get initial session
-    supabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        console.error('AuthProvider: Error getting initial session:', error);
+    // Get initial session with timeout
+    const getInitialSession = async () => {
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        
+        if (error) {
+          console.error('AuthProvider: Error getting initial session:', error);
+          clearTimeout(authTimeout);
+          setIsLoading(false);
+          return;
+        }
+        
+        console.log('AuthProvider: Initial session found:', session?.user?.email || 'no session');
+        setSession(session);
+        
+        if (session?.user) {
+          await loadUserData(session.user);
+        } else {
+          clearTimeout(authTimeout);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('AuthProvider: Critical error getting session:', error);
+        clearTimeout(authTimeout);
         setIsLoading(false);
-        return;
       }
-      
-      console.log('AuthProvider: Initial session found:', session?.user?.email || 'no session');
-      setSession(session);
-      
-      if (session?.user) {
-        loadUserData(session.user);
-      } else {
-        setIsLoading(false);
-      }
-    });
+    };
+
+    getInitialSession();
 
     // Listen for auth state changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -56,6 +76,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await loadUserData(session.user);
         } else if (event === 'SIGNED_OUT') {
           console.log('AuthProvider: User signed out');
+          clearTimeout(authTimeout);
           setUser(null);
           setChurch(null);
           setIsLoading(false);
@@ -66,6 +87,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await loadUserData(session.user);
           }
         } else if (!session) {
+          clearTimeout(authTimeout);
           setUser(null);
           setChurch(null);
           setIsLoading(false);
@@ -75,6 +97,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     return () => {
       subscription.unsubscribe();
+      clearTimeout(authTimeout);
     };
   }, [user]);
 
@@ -90,72 +113,76 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoadingUserData(true);
       setIsLoading(true);
       
+      // Set timeout for user data loading
+      const userDataTimeout = setTimeout(() => {
+        console.warn('AuthProvider: User data loading timeout');
+        createFallbackUser(authUser);
+      }, 8000); // 8 seconds timeout
+      
       // Try to load profile with retry logic
       let profile = null;
       let attempts = 0;
-      const maxAttempts = 3;
+      const maxAttempts = 2; // Reduced attempts for faster loading
       
       while (!profile && attempts < maxAttempts) {
         attempts++;
         console.log(`AuthProvider: Loading profile attempt ${attempts}...`);
         
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', authUser.id)
-          .single();
+        try {
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', authUser.id)
+            .single();
 
-        if (profileData) {
-          profile = profileData;
-          console.log('AuthProvider: Profile found successfully');
-          break;
+          if (profileData) {
+            profile = profileData;
+            console.log('AuthProvider: Profile found successfully');
+            clearTimeout(userDataTimeout);
+            break;
+          }
+          
+          if (profileError && profileError.code !== 'PGRST116') {
+            console.log(`AuthProvider: Profile error (attempt ${attempts}):`, profileError.message);
+          }
+        } catch (error) {
+          console.warn(`AuthProvider: Profile fetch attempt ${attempts} failed:`, error);
         }
         
-        if (profileError && profileError.code !== 'PGRST116') {
-          console.log(`AuthProvider: Profile error (attempt ${attempts}):`, profileError.message);
-        }
-        
-        // Wait before retry
+        // Wait before retry (reduced wait time)
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1000));
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
 
       if (!profile) {
         console.log('AuthProvider: Profile not found after retries, creating minimal user data');
-        
-        // Create minimal user data as fallback
-        const minimalUser: AppUser = {
-          id: authUser.id,
-          email: authUser.email!,
-          name: authUser.user_metadata?.full_name || authUser.email!.split('@')[0],
-          phone: null,
-          role: authUser.email === 'yuriadrskt@gmail.com' ? 'master' : 'member',
-          churchId: undefined,
-          avatar: authUser.user_metadata?.avatar_url || null,
-          experience: 'beginner',
-          skills: [],
-          language: 'pt-BR',
-          darkMode: false,
-          joinedAt: new Date(),
-          lastActive: new Date()
-        };
-        
-        setUser(minimalUser);
-        setIsLoading(false);
-        setIsLoadingUserData(false);
+        clearTimeout(userDataTimeout);
+        createFallbackUser(authUser);
         return;
       }
 
-      // Get user roles
+      // Clear timeout since we found profile
+      clearTimeout(userDataTimeout);
+
+      // Get user roles (with timeout)
       let userRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
 
       try {
-        const { data: rolesData, error: rolesError } = await supabase
+        const rolePromise = supabase
           .from('user_roles')
           .select('role, church_id')
           .eq('user_id', authUser.id);
+
+        const roleTimeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Role loading timeout')), 3000)
+        );
+
+        const { data: rolesData, error: rolesError } = await Promise.race([
+          rolePromise,
+          roleTimeoutPromise
+        ]) as any;
 
         if (!rolesError && rolesData && rolesData.length > 0) {
           // Find highest priority role
@@ -186,11 +213,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      // Load church data if needed
+      // Load church data if needed (with timeout and only if not master)
       let churchData: Church | null = null;
       if (churchId && userRole !== 'master') {
         try {
-          const { data: church } = await supabase
+          const churchPromise = supabase
             .from('churches')
             .select(`
               *,
@@ -198,6 +225,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             `)
             .eq('id', churchId)
             .single();
+
+          const churchTimeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('Church loading timeout')), 3000)
+          );
+
+          const { data: church } = await Promise.race([
+            churchPromise,
+            churchTimeoutPromise
+          ]) as any;
 
           if (church) {
             churchData = {
@@ -250,30 +286,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
     } catch (error) {
       console.error('AuthProvider: Critical error loading user data:', error);
-      
-      // Create minimal user data as absolute fallback
-      const minimalUser: AppUser = {
-        id: authUser.id,
-        email: authUser.email!,
-        name: authUser.user_metadata?.full_name || authUser.email!.split('@')[0],
-        phone: null,
-        role: authUser.email === 'yuriadrskt@gmail.com' ? 'master' : 'member',
-        churchId: undefined,
-        avatar: authUser.user_metadata?.avatar_url || null,
-        experience: 'beginner',
-        skills: [],
-        language: 'pt-BR',
-        darkMode: false,
-        joinedAt: new Date(),
-        lastActive: new Date()
-      };
-      
-      console.log('AuthProvider: Setting minimal user data as fallback');
-      setUser(minimalUser);
+      createFallbackUser(authUser);
     } finally {
       setIsLoading(false);
       setIsLoadingUserData(false);
     }
+  };
+
+  const createFallbackUser = (authUser: SupabaseUser) => {
+    // Create minimal user data as fallback
+    const minimalUser: AppUser = {
+      id: authUser.id,
+      email: authUser.email!,
+      name: authUser.user_metadata?.full_name || authUser.email!.split('@')[0],
+      phone: null,
+      role: authUser.email === 'yuriadrskt@gmail.com' ? 'master' : 'member',
+      churchId: undefined,
+      avatar: authUser.user_metadata?.avatar_url || null,
+      experience: 'beginner',
+      skills: [],
+      language: 'pt-BR',
+      darkMode: false,
+      joinedAt: new Date(),
+      lastActive: new Date()
+    };
+    
+    console.log('AuthProvider: Setting minimal user data as fallback');
+    setUser(minimalUser);
+    setIsLoading(false);
+    setIsLoadingUserData(false);
   };
 
   const login = async (email: string, password: string) => {

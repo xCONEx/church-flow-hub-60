@@ -10,6 +10,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [church, setChurch] = useState<Church | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
+  const [isLoadingUserData, setIsLoadingUserData] = useState(false);
 
   useEffect(() => {
     console.log('AuthProvider: Initializing authentication system...');
@@ -21,13 +22,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     
     if (error) {
       console.error('AuthProvider: OAuth error detected:', error, errorDescription);
-      // Clean URL
       window.history.replaceState({}, document.title, window.location.pathname);
       
-      // Show user-friendly error
       if (error === 'server_error' && errorDescription?.includes('Database error')) {
         console.log('AuthProvider: Attempting to recover from database error...');
-        // Continue with normal flow to try to recover
       }
     }
     
@@ -65,9 +63,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setChurch(null);
           setIsLoading(false);
         } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          // Don't reload data on token refresh, just update session
           console.log('AuthProvider: Token refreshed');
-        } else if (session?.user) {
+          // Don't reload data on token refresh if we already have user data
+          if (!user) {
+            await loadUserData(session.user);
+          }
+        } else if (session?.user && !isLoadingUserData) {
           await loadUserData(session.user);
         } else {
           setUser(null);
@@ -83,14 +84,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const loadUserData = async (authUser: SupabaseUser) => {
+    // Prevent multiple concurrent loads
+    if (isLoadingUserData) {
+      console.log('AuthProvider: User data already loading, skipping...');
+      return;
+    }
+
     try {
       console.log('AuthProvider: Loading user data for:', authUser.email);
+      setIsLoadingUserData(true);
       setIsLoading(true);
       
-      // Try multiple times to ensure database trigger has executed
+      // Try to load profile with retry logic
       let profile = null;
       let attempts = 0;
-      const maxAttempts = 5;
+      const maxAttempts = 3;
       
       while (!profile && attempts < maxAttempts) {
         attempts++;
@@ -108,132 +116,79 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           break;
         }
         
-        if (profileError) {
-          console.log(`AuthProvider: Profile not found (attempt ${attempts}), creating...`, profileError.message);
-          
-          // Try to create profile manually with more robust error handling
-          const profileToCreate = {
-            id: authUser.id,
-            email: authUser.email!,
-            name: authUser.user_metadata?.full_name || 
-                  authUser.user_metadata?.name || 
-                  authUser.user_metadata?.given_name ||
-                  authUser.email!.split('@')[0],
-            phone: authUser.user_metadata?.phone || null,
-            avatar: authUser.user_metadata?.avatar_url || 
-                   authUser.user_metadata?.picture || null,
-            experience: 'beginner',
-            skills: [],
-            language: 'pt-BR',
-            dark_mode: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          };
-
-          console.log('AuthProvider: Creating profile with data:', profileToCreate);
-          
-          const { data: newProfile, error: createError } = await supabase
-            .from('profiles')
-            .upsert(profileToCreate, { 
-              onConflict: 'id',
-              ignoreDuplicates: false 
-            })
-            .select()
-            .single();
-
-          if (newProfile) {
-            profile = newProfile;
-            console.log('AuthProvider: Profile created successfully');
-            break;
-          } else {
-            console.error('AuthProvider: Error creating profile:', createError);
-            
-            // If it's a duplicate key error, try to fetch again
-            if (createError?.code === '23505') {
-              console.log('AuthProvider: Duplicate key error, retrying fetch...');
-              await new Promise(resolve => setTimeout(resolve, 1000));
-              continue;
-            }
-          }
+        if (profileError && profileError.code !== 'PGRST116') {
+          console.log(`AuthProvider: Profile error (attempt ${attempts}):`, profileError.message);
         }
         
         // Wait before retry
         if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 1500));
+          await new Promise(resolve => setTimeout(resolve, 1000));
         }
       }
 
       if (!profile) {
-        throw new Error('Failed to load or create user profile after multiple attempts');
+        console.log('AuthProvider: Profile not found, creating minimal user data');
+        
+        // Create minimal user data as fallback
+        const minimalUser: AppUser = {
+          id: authUser.id,
+          email: authUser.email!,
+          name: authUser.user_metadata?.full_name || authUser.email!.split('@')[0],
+          phone: null,
+          role: authUser.email === 'yuriadrskt@gmail.com' ? 'master' : 'member',
+          churchId: undefined,
+          avatar: authUser.user_metadata?.avatar_url || null,
+          experience: 'beginner',
+          skills: [],
+          language: 'pt-BR',
+          darkMode: false,
+          joinedAt: new Date(),
+          lastActive: new Date()
+        };
+        
+        setUser(minimalUser);
+        setIsLoading(false);
+        setIsLoadingUserData(false);
+        return;
       }
 
-      // Get user roles with retry logic
+      // Get user roles - CORRIGIDO: não tentar criar role se já existe
       let userRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
 
       try {
-        let roleAttempts = 0;
-        let userRoles = null;
-        
-        while (!userRoles && roleAttempts < 3) {
-          roleAttempts++;
-          
-          const { data: rolesData, error: rolesError } = await supabase
-            .from('user_roles')
-            .select('role, church_id')
-            .eq('user_id', authUser.id);
+        const { data: rolesData, error: rolesError } = await supabase
+          .from('user_roles')
+          .select('role, church_id')
+          .eq('user_id', authUser.id);
 
-          if (!rolesError && rolesData && rolesData.length > 0) {
-            userRoles = rolesData;
-            break;
-          }
-          
-          if (rolesError) {
-            console.log('AuthProvider: Error fetching roles:', rolesError);
-          }
-          
-          // If no roles found, create default role
-          if (!rolesData || rolesData.length === 0) {
-            console.log('AuthProvider: Creating default member role...');
-            
-            const defaultRole = authUser.email === 'yuriadrskt@gmail.com' ? 'master' : 'member';
-            
-            const { data: newRole, error: roleCreateError } = await supabase
-              .from('user_roles')
-              .upsert({
-                user_id: authUser.id,
-                role: defaultRole,
-                church_id: null
-              }, { onConflict: 'user_id,church_id,role' })
-              .select();
-              
-            if (newRole && newRole.length > 0) {
-              userRoles = newRole;
-              break;
-            } else {
-              console.error('AuthProvider: Error creating default role:', roleCreateError);
-            }
-          }
-          
-          if (roleAttempts < 3) {
-            await new Promise(resolve => setTimeout(resolve, 1000));
-          }
-        }
-
-        if (userRoles && userRoles.length > 0) {
+        if (!rolesError && rolesData && rolesData.length > 0) {
           // Find highest priority role
           const roleHierarchy = ['master', 'admin', 'leader', 'collaborator', 'member'];
           for (const role of roleHierarchy) {
-            const foundRole = userRoles.find(r => r.role === role);
+            const foundRole = rolesData.find(r => r.role === role);
             if (foundRole) {
               userRole = foundRole.role as AppUser['role'];
               churchId = foundRole.church_id;
               break;
             }
           }
+          console.log('AuthProvider: User role found:', userRole);
+        } else {
+          // Se não tem roles E é o email master, significa que precisa ser criado
+          if (authUser.email === 'yuriadrskt@gmail.com') {
+            console.log('AuthProvider: Master user without role detected, should be handled by database trigger');
+            userRole = 'master';
+          } else {
+            console.log('AuthProvider: No roles found for user, using default member role');
+          }
         }
       } catch (roleError) {
-        console.warn('AuthProvider: Error with user roles, using default member role:', roleError);
+        console.warn('AuthProvider: Error loading user roles:', roleError);
+        // Use email-based fallback for role determination
+        if (authUser.email === 'yuriadrskt@gmail.com') {
+          userRole = 'master';
+        }
       }
 
       // Load church data if needed
@@ -296,36 +251,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log('AuthProvider: User data loaded successfully:', userData.email, userData.role);
       setUser(userData);
+      setChurch(churchData);
       
     } catch (error) {
       console.error('AuthProvider: Critical error loading user data:', error);
-      // Don't throw, just log and continue with limited functionality
       
-      // Try to create minimal user data
-      try {
-        const minimalUser: AppUser = {
-          id: authUser.id,
-          email: authUser.email!,
-          name: authUser.user_metadata?.full_name || authUser.email!.split('@')[0],
-          phone: null,
-          role: authUser.email === 'yuriadrskt@gmail.com' ? 'master' : 'member',
-          churchId: undefined,
-          avatar: authUser.user_metadata?.avatar_url || null,
-          experience: 'beginner',
-          skills: [],
-          language: 'pt-BR',
-          darkMode: false,
-          joinedAt: new Date(),
-          lastActive: new Date()
-        };
-        
-        console.log('AuthProvider: Setting minimal user data as fallback');
-        setUser(minimalUser);
-      } catch (fallbackError) {
-        console.error('AuthProvider: Even fallback user creation failed:', fallbackError);
-      }
+      // Create minimal user data as absolute fallback
+      const minimalUser: AppUser = {
+        id: authUser.id,
+        email: authUser.email!,
+        name: authUser.user_metadata?.full_name || authUser.email!.split('@')[0],
+        phone: null,
+        role: authUser.email === 'yuriadrskt@gmail.com' ? 'master' : 'member',
+        churchId: undefined,
+        avatar: authUser.user_metadata?.avatar_url || null,
+        experience: 'beginner',
+        skills: [],
+        language: 'pt-BR',
+        darkMode: false,
+        joinedAt: new Date(),
+        lastActive: new Date()
+      };
+      
+      console.log('AuthProvider: Setting minimal user data as fallback');
+      setUser(minimalUser);
     } finally {
       setIsLoading(false);
+      setIsLoadingUserData(false);
     }
   };
 
@@ -346,7 +298,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       console.log('AuthProvider: Login successful for:', email);
-      // Don't set loading to false here, let the auth state change handler do it
     } catch (error) {
       console.error('AuthProvider: Login failed:', error);
       setIsLoading(false);

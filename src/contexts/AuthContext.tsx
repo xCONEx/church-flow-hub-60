@@ -1,9 +1,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { User, Session } from '@supabase/supabase-js';
+import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { User as AppUser, Church, AuthContextType } from '@/types';
-
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -14,20 +13,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    console.log('AuthProvider: Initializing auth state listener...');
+    console.log('AuthProvider: Initializing...');
     
-    // Get initial session first
+    // Get initial session
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('AuthProvider: Initial session check:', session?.user?.email || 'no session');
+      console.log('AuthProvider: Initial session:', session?.user?.email || 'no session');
       setSession(session);
       if (session?.user) {
-        loadUserProfile(session.user.id);
+        loadUserData(session.user);
       } else {
         setIsLoading(false);
       }
     });
 
-    // Set up auth state listener
+    // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
         console.log('AuthProvider: Auth state changed:', event, session?.user?.email || 'no session');
@@ -35,7 +34,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setSession(session);
         
         if (session?.user) {
-          await loadUserProfile(session.user.id);
+          await loadUserData(session.user);
         } else {
           setUser(null);
           setChurch(null);
@@ -45,109 +44,98 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     return () => {
-      console.log('AuthProvider: Cleaning up auth subscription');
       subscription.unsubscribe();
     };
   }, []);
 
-  const loadUserProfile = async (userId: string) => {
+  const loadUserData = async (authUser: SupabaseUser) => {
     try {
-      console.log('AuthProvider: Loading user profile for:', userId);
+      console.log('AuthProvider: Loading user data for:', authUser.email);
       
-      // Get current auth user data
-      const { data: authUser } = await supabase.auth.getUser();
-      if (!authUser.user) {
-        console.error('AuthProvider: No authenticated user found');
-        setIsLoading(false);
-        return;
-      }
-
-      // Get or create user profile
+      // Check if profile exists
       let { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
-        .eq('id', userId)
+        .eq('id', authUser.id)
         .single();
 
-      if (profileError) {
-        console.error('AuthProvider: Error loading profile:', profileError);
+      // If profile doesn't exist, create it
+      if (profileError || !profile) {
+        console.log('AuthProvider: Creating profile for user:', authUser.email);
         
-        // If profile doesn't exist, create it
-        if (profileError.code === 'PGRST116') {
-          console.log('AuthProvider: Creating new profile for user:', authUser.user.email);
-          
-          const name = authUser.user.user_metadata?.full_name || 
-                      authUser.user.user_metadata?.name || 
-                      authUser.user.email!.split('@')[0];
+        const name = authUser.user_metadata?.full_name || 
+                     authUser.user_metadata?.name || 
+                     authUser.email!.split('@')[0];
 
-          try {
-            const { data: newProfile, error: createError } = await supabase
-              .from('profiles')
-              .insert({
-                id: authUser.user.id,
-                email: authUser.user.email!,
-                name: name,
-                avatar: authUser.user.user_metadata?.avatar_url || authUser.user.user_metadata?.picture,
-                created_at: new Date().toISOString()
-              })
-              .select()
-              .single();
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({
+            id: authUser.id,
+            email: authUser.email!,
+            name: name,
+            phone: authUser.user_metadata?.phone || null,
+            avatar: authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture,
+            created_at: new Date().toISOString()
+          })
+          .select()
+          .single();
 
-            if (createError) {
-              console.error('AuthProvider: Error creating profile:', createError);
-              throw createError;
-            }
-            
-            profile = newProfile;
-            console.log('AuthProvider: Profile created successfully:', profile);
-          } catch (createProfileError) {
-            console.error('AuthProvider: Failed to create profile:', createProfileError);
-            setIsLoading(false);
-            return;
-          }
-        } else {
+        if (createError) {
+          console.error('AuthProvider: Error creating profile:', createError);
           setIsLoading(false);
           return;
         }
+        
+        profile = newProfile;
+        console.log('AuthProvider: Profile created successfully');
       }
 
-      // Load user roles
+      // Get user roles
       const { data: userRoles } = await supabase
         .from('user_roles')
         .select('role, church_id')
-        .eq('user_id', userId);
+        .eq('user_id', authUser.id);
 
       let primaryRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
 
-      if (userRoles && userRoles.length > 0) {
-        const masterRole = userRoles.find(r => r.role === 'master');
-        if (masterRole) {
-          primaryRole = 'master';
-        } else {
-          const roleHierarchy = ['admin', 'leader', 'collaborator', 'member'];
-          for (const role of roleHierarchy) {
-            const foundRole = userRoles.find(r => r.role === role && r.church_id);
-            if (foundRole) {
-              primaryRole = foundRole.role as AppUser['role'];
-              churchId = foundRole.church_id;
-              break;
-            }
+      // Check if user is master
+      if (authUser.email === 'yuriadrskt@gmail.com') {
+        primaryRole = 'master';
+        
+        // Ensure master role exists in database
+        const { error: masterRoleError } = await supabase
+          .from('user_roles')
+          .upsert({
+            user_id: authUser.id,
+            role: 'master',
+            church_id: null
+          });
+
+        if (masterRoleError) {
+          console.error('AuthProvider: Error creating master role:', masterRoleError);
+        }
+      } else if (userRoles && userRoles.length > 0) {
+        // Find highest role
+        const roleHierarchy = ['admin', 'leader', 'collaborator', 'member'];
+        for (const role of roleHierarchy) {
+          const foundRole = userRoles.find(r => r.role === role && r.church_id);
+          if (foundRole) {
+            primaryRole = foundRole.role as AppUser['role'];
+            churchId = foundRole.church_id;
+            break;
           }
         }
       }
 
-      // Load church data if user has one
+      // Load church data if user belongs to one
       let churchData: Church | null = null;
       if (churchId && primaryRole !== 'master') {
         const { data: church } = await supabase
           .from('churches')
           .select(`
             *,
-            departments:departments(
-              id, name, type, leader_id, is_sub_department, 
-              parent_department_id, church_id, created_at
-            )
+            departments(*)
           `)
           .eq('id', churchId)
           .single();
@@ -186,7 +174,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         role: primaryRole,
         churchId,
         avatar: profile.avatar,
-        experience: profile.experience as 'beginner' | 'intermediate' | 'advanced',
+        experience: profile.experience as 'beginner' | 'intermediate' | 'advanced' || 'beginner',
         skills: profile.skills || [],
         language: profile.language || 'pt-BR',
         darkMode: profile.dark_mode || false,
@@ -194,12 +182,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastActive: new Date()
       };
 
-      console.log('AuthProvider: User profile loaded successfully:', userData);
+      console.log('AuthProvider: User data loaded successfully:', userData.email, userData.role);
       setUser(userData);
       setChurch(churchData);
       setIsLoading(false);
     } catch (error) {
-      console.error('AuthProvider: Error in loadUserProfile:', error);
+      console.error('AuthProvider: Error loading user data:', error);
       setIsLoading(false);
     }
   };
@@ -218,48 +206,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setIsLoading(false);
       throw error;
     }
-    // User will be loaded automatically by onAuthStateChange
+    
+    console.log('AuthProvider: Login successful');
   };
 
-  const register = async (userData: Partial<AppUser> & { password: string }) => {
+  const register = async (userData: { name: string; email: string; phone?: string; password: string }) => {
     setIsLoading(true);
     console.log('AuthProvider: Attempting registration for:', userData.email);
 
-    if (!userData.email || !userData.name) {
-      throw new Error('Email e nome são obrigatórios');
-    }
-
-    if (!userData.password || userData.password.length < 6) {
-      throw new Error('Senha deve ter pelo menos 6 caracteres');
-    }
-
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: userData.email,
-        password: userData.password,
-        options: {
-          emailRedirectTo: window.location.origin,
-          data: {
-            name: userData.name,
-            full_name: userData.name,
-            phone: userData.phone
-          }
+    const { data, error } = await supabase.auth.signUp({
+      email: userData.email,
+      password: userData.password,
+      options: {
+        emailRedirectTo: window.location.origin,
+        data: {
+          name: userData.name,
+          full_name: userData.name,
+          phone: userData.phone
         }
-      });
-
-      if (error) {
-        console.error('AuthProvider: Registration error:', error);
-        setIsLoading(false);
-        throw error;
       }
+    });
 
-      console.log('AuthProvider: Registration successful:', data);
-      setIsLoading(false);
-    } catch (error) {
-      console.error('AuthProvider: Registration failed:', error);
+    if (error) {
+      console.error('AuthProvider: Registration error:', error);
       setIsLoading(false);
       throw error;
     }
+
+    console.log('AuthProvider: Registration successful for:', userData.email);
+    setIsLoading(false);
   };
 
   const logout = async () => {
@@ -274,7 +249,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUser = async (userData: Partial<AppUser>) => {
     if (!user) throw new Error('No user logged in');
 
-    console.log('AuthProvider: Updating user profile:', userData);
+    console.log('AuthProvider: Updating user profile');
     
     const { error } = await supabase
       .from('profiles')
@@ -295,8 +270,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       throw error;
     }
 
-    // Reload user profile
-    await loadUserProfile(user.id);
+    // Reload user data
+    const { data: authUser } = await supabase.auth.getUser();
+    if (authUser.user) {
+      await loadUserData(authUser.user);
+    }
   };
 
   const value: AuthContextType = {

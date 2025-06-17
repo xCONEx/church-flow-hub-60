@@ -13,6 +13,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
+    console.log('Initializing auth state listener...');
+    
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
@@ -34,6 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // THEN check for existing session
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session check:', session?.user?.email);
       setSession(session);
       if (session?.user) {
         setTimeout(() => {
@@ -44,7 +47,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      console.log('Cleaning up auth subscription');
+      subscription.unsubscribe();
+    };
   }, []);
 
   const loadUserProfile = async (userId: string) => {
@@ -52,7 +58,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       console.log('Loading user profile for:', userId);
       
       // Buscar perfil do usuário
-      const { data: profile, error: profileError } = await supabase
+      let { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
@@ -60,8 +66,36 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (profileError) {
         console.error('Error loading profile:', profileError);
-        setIsLoading(false);
-        return;
+        
+        // Se perfil não existe, criar um novo
+        if (profileError.code === 'PGRST116') {
+          const { data: authUser } = await supabase.auth.getUser();
+          if (authUser.user) {
+            console.log('Creating new profile for user:', authUser.user.email);
+            const { data: newProfile, error: createError } = await supabase
+              .from('profiles')
+              .insert({
+                id: authUser.user.id,
+                email: authUser.user.email!,
+                name: authUser.user.user_metadata?.full_name || authUser.user.user_metadata?.name || authUser.user.email!.split('@')[0],
+                created_at: new Date().toISOString()
+              })
+              .select()
+              .single();
+
+            if (createError) {
+              console.error('Error creating profile:', createError);
+              setIsLoading(false);
+              return;
+            }
+            
+            // Usar o perfil recém-criado
+            profile = newProfile;
+          }
+        } else {
+          setIsLoading(false);
+          return;
+        }
       }
 
       // Buscar roles do usuário
@@ -72,8 +106,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       if (rolesError) {
         console.error('Error loading user roles:', rolesError);
-        setIsLoading(false);
-        return;
       }
 
       // Determinar o role principal e igreja
@@ -162,7 +194,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastActive: new Date()
       };
 
-      console.log('User profile loaded:', userData);
+      console.log('User profile loaded successfully:', userData);
       setUser(userData);
       setChurch(churchData);
       setIsLoading(false);
@@ -201,7 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: userData.email,
       password: userData.email, // Temporary password, user should change it
       options: {
-        emailRedirectTo: `${window.location.origin}/`,
+        emailRedirectTo: `${window.location.origin}/dashboard`,
         data: {
           name: userData.name,
           full_name: userData.name

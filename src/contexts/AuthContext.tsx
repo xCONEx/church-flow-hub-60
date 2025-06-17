@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -10,38 +11,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [church, setChurch] = useState<Church | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
-  const [isLoadingUserData, setIsLoadingUserData] = useState(false);
 
   useEffect(() => {
     console.log('AuthProvider: Initializing authentication system...');
     
-    // Set timeout to prevent infinite loading
-    const authTimeout = setTimeout(() => {
-      console.warn('AuthProvider: Auth check timeout, setting loading to false');
-      setIsLoading(false);
-    }, 10000); // 10 seconds timeout
+    let isInitializing = true;
     
-    // Check for OAuth errors in URL
-    const urlParams = new URLSearchParams(window.location.search);
-    const error = urlParams.get('error');
-    const errorDescription = urlParams.get('error_description');
-    
-    if (error) {
-      console.error('AuthProvider: OAuth error detected:', error, errorDescription);
-      window.history.replaceState({}, document.title, window.location.pathname);
-      clearTimeout(authTimeout);
-      setIsLoading(false);
-      return;
-    }
-    
-    // Get initial session with timeout
+    // Get initial session
     const getInitialSession = async () => {
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         
         if (error) {
           console.error('AuthProvider: Error getting initial session:', error);
-          clearTimeout(authTimeout);
           setIsLoading(false);
           return;
         }
@@ -49,15 +31,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.log('AuthProvider: Initial session found:', session?.user?.email || 'no session');
         setSession(session);
         
-        if (session?.user) {
+        if (session?.user && isInitializing) {
           await loadUserData(session.user);
         } else {
-          clearTimeout(authTimeout);
           setIsLoading(false);
         }
       } catch (error) {
         console.error('AuthProvider: Critical error getting session:', error);
-        clearTimeout(authTimeout);
         setIsLoading(false);
       }
     };
@@ -69,6 +49,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       async (event, session) => {
         console.log('AuthProvider: Auth state changed:', event, session?.user?.email || 'no session');
         
+        // Prevent processing during initialization
+        if (isInitializing && event === 'INITIAL_SESSION') {
+          return;
+        }
+        
         setSession(session);
         
         if (event === 'SIGNED_IN' && session?.user) {
@@ -76,7 +61,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           await loadUserData(session.user);
         } else if (event === 'SIGNED_OUT') {
           console.log('AuthProvider: User signed out');
-          clearTimeout(authTimeout);
           setUser(null);
           setChurch(null);
           setIsLoading(false);
@@ -87,7 +71,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await loadUserData(session.user);
           }
         } else if (!session) {
-          clearTimeout(authTimeout);
           setUser(null);
           setChurch(null);
           setIsLoading(false);
@@ -95,96 +78,56 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     );
 
+    // Mark initialization as complete after a short delay
+    setTimeout(() => {
+      isInitializing = false;
+    }, 1000);
+
     return () => {
       subscription.unsubscribe();
-      clearTimeout(authTimeout);
+      isInitializing = false;
     };
-  }, []); // Remove user dependency to prevent infinite loop
+  }, []);
 
   const loadUserData = async (authUser: SupabaseUser) => {
-    // Prevent multiple concurrent loads
-    if (isLoadingUserData) {
-      console.log('AuthProvider: User data already loading, skipping...');
+    // Prevent multiple concurrent loads for the same user
+    if (user && user.id === authUser.id) {
+      console.log('AuthProvider: User data already loaded, skipping...');
+      setIsLoading(false);
       return;
     }
 
     try {
       console.log('AuthProvider: Loading user data for:', authUser.email);
-      setIsLoadingUserData(true);
       setIsLoading(true);
       
-      // Set timeout for user data loading
-      const userDataTimeout = setTimeout(() => {
-        console.warn('AuthProvider: User data loading timeout');
-        createFallbackUser(authUser);
-      }, 8000); // 8 seconds timeout
-      
-      // Try to load profile with retry logic
-      let profile = null;
-      let attempts = 0;
-      const maxAttempts = 2; // Reduced attempts for faster loading
-      
-      while (!profile && attempts < maxAttempts) {
-        attempts++;
-        console.log(`AuthProvider: Loading profile attempt ${attempts}...`);
-        
-        try {
-          const { data: profileData, error: profileError } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', authUser.id)
-            .single();
+      // Load profile with single attempt
+      console.log('AuthProvider: Loading profile...');
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', authUser.id)
+        .single();
 
-          if (profileData) {
-            profile = profileData;
-            console.log('AuthProvider: Profile found successfully');
-            clearTimeout(userDataTimeout);
-            break;
-          }
-          
-          if (profileError && profileError.code !== 'PGRST116') {
-            console.log(`AuthProvider: Profile error (attempt ${attempts}):`, profileError.message);
-          }
-        } catch (error) {
-          console.warn(`AuthProvider: Profile fetch attempt ${attempts} failed:`, error);
-        }
-        
-        // Wait before retry (reduced wait time)
-        if (attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 500));
-        }
-      }
-
-      if (!profile) {
-        console.log('AuthProvider: Profile not found after retries, creating minimal user data');
-        clearTimeout(userDataTimeout);
+      if (profileError || !profile) {
+        console.log('AuthProvider: Profile not found, creating fallback user');
         createFallbackUser(authUser);
         return;
       }
 
-      // Clear timeout since we found profile
-      clearTimeout(userDataTimeout);
+      console.log('AuthProvider: Profile found successfully');
 
-      // Get user roles (with timeout)
+      // Get user roles
       let userRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
 
       try {
-        const rolePromise = supabase
+        const { data: rolesData } = await supabase
           .from('user_roles')
           .select('role, church_id')
           .eq('user_id', authUser.id);
 
-        const roleTimeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Role loading timeout')), 3000)
-        );
-
-        const { data: rolesData, error: rolesError } = await Promise.race([
-          rolePromise,
-          roleTimeoutPromise
-        ]) as any;
-
-        if (!rolesError && rolesData && rolesData.length > 0) {
+        if (rolesData && rolesData.length > 0) {
           // Find highest priority role
           const roleHierarchy = ['master', 'admin', 'leader', 'collaborator', 'member'];
           for (const role of roleHierarchy) {
@@ -197,27 +140,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
           console.log('AuthProvider: User role found:', userRole);
         } else {
-          // Fallback baseado no email
+          // Fallback for master user
           if (authUser.email === 'yuriadrskt@gmail.com') {
             userRole = 'master';
-            console.log('AuthProvider: Using master role fallback for yuriadrskt@gmail.com');
-          } else {
-            console.log('AuthProvider: No roles found, using default member role');
+            console.log('AuthProvider: Using master role fallback');
           }
         }
       } catch (roleError) {
         console.warn('AuthProvider: Error loading user roles:', roleError);
-        // Use email-based fallback for role determination
         if (authUser.email === 'yuriadrskt@gmail.com') {
           userRole = 'master';
         }
       }
 
-      // Load church data if needed (with timeout and only if not master)
+      // Load church data if needed (only if not master)
       let churchData: Church | null = null;
       if (churchId && userRole !== 'master') {
         try {
-          const churchPromise = supabase
+          const { data: church } = await supabase
             .from('churches')
             .select(`
               *,
@@ -225,15 +165,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             `)
             .eq('id', churchId)
             .single();
-
-          const churchTimeoutPromise = new Promise((_, reject) => 
-            setTimeout(() => reject(new Error('Church loading timeout')), 3000)
-          );
-
-          const { data: church } = await Promise.race([
-            churchPromise,
-            churchTimeoutPromise
-          ]) as any;
 
           if (church) {
             churchData = {
@@ -285,16 +216,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setChurch(churchData);
       
     } catch (error) {
-      console.error('AuthProvider: Critical error loading user data:', error);
+      console.error('AuthProvider: Error loading user data:', error);
       createFallbackUser(authUser);
     } finally {
       setIsLoading(false);
-      setIsLoadingUserData(false);
     }
   };
 
   const createFallbackUser = (authUser: SupabaseUser) => {
-    // Create minimal user data as fallback
     const minimalUser: AppUser = {
       id: authUser.id,
       email: authUser.email!,
@@ -314,7 +243,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log('AuthProvider: Setting minimal user data as fallback');
     setUser(minimalUser);
     setIsLoading(false);
-    setIsLoadingUserData(false);
   };
 
   const login = async (email: string, password: string) => {

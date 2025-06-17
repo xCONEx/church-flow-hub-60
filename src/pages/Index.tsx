@@ -2,6 +2,7 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { Login } from '@/pages/Login';
 import { Church } from 'lucide-react';
 
 const Index = () => {
@@ -31,8 +32,6 @@ const Index = () => {
 
   // If no user and not loading, show login interface directly
   if (!isLoading && !user) {
-    // Import Login component here to avoid redirect loops
-    const { Login } = require('@/pages/Login');
     return <Login />;
   }
 

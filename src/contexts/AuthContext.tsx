@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -12,11 +13,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
-    console.log('Initializing auth state listener...');
+    console.log('AuthProvider: Initializing auth state listener...');
     
     // Get initial session first
     supabase.auth.getSession().then(({ data: { session } }) => {
-      console.log('Initial session check:', session?.user?.email || 'no session');
+      console.log('AuthProvider: Initial session check:', session?.user?.email || 'no session');
       setSession(session);
       if (session?.user) {
         loadUserProfile(session.user.id);
@@ -28,19 +29,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        console.log('Auth state changed:', event, session?.user?.email || 'no session');
-        
-        // Handle OAuth errors from URL
-        if (typeof window !== 'undefined') {
-          const urlParams = new URLSearchParams(window.location.search);
-          const error = urlParams.get('error');
-          
-          if (error) {
-            console.error('OAuth error detected:', error);
-            // Clean URL from error parameters
-            window.history.replaceState({}, document.title, window.location.pathname);
-          }
-        }
+        console.log('AuthProvider: Auth state changed:', event, session?.user?.email || 'no session');
         
         setSession(session);
         
@@ -55,19 +44,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
 
     return () => {
-      console.log('Cleaning up auth subscription');
+      console.log('AuthProvider: Cleaning up auth subscription');
       subscription.unsubscribe();
     };
   }, []);
 
   const loadUserProfile = async (userId: string) => {
     try {
-      console.log('Loading user profile for:', userId);
+      console.log('AuthProvider: Loading user profile for:', userId);
       
       // Get current auth user data
       const { data: authUser } = await supabase.auth.getUser();
       if (!authUser.user) {
-        console.error('No authenticated user found');
+        console.error('AuthProvider: No authenticated user found');
         setIsLoading(false);
         return;
       }
@@ -80,11 +69,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .single();
 
       if (profileError) {
-        console.error('Error loading profile:', profileError);
+        console.error('AuthProvider: Error loading profile:', profileError);
         
         // If profile doesn't exist, create it
         if (profileError.code === 'PGRST116') {
-          console.log('Creating new profile for user:', authUser.user.email);
+          console.log('AuthProvider: Creating new profile for user:', authUser.user.email);
           
           const name = authUser.user.user_metadata?.full_name || 
                       authUser.user.user_metadata?.name || 
@@ -103,7 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .single();
 
           if (createError) {
-            console.error('Error creating profile:', createError);
+            console.error('AuthProvider: Error creating profile:', createError);
             setIsLoading(false);
             return;
           }
@@ -198,19 +187,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastActive: new Date()
       };
 
-      console.log('User profile loaded successfully:', userData);
+      console.log('AuthProvider: User profile loaded successfully:', userData);
       setUser(userData);
       setChurch(churchData);
       setIsLoading(false);
     } catch (error) {
-      console.error('Error in loadUserProfile:', error);
+      console.error('AuthProvider: Error in loadUserProfile:', error);
       setIsLoading(false);
     }
   };
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);
-    console.log('Attempting login for:', email);
+    console.log('AuthProvider: Attempting login for:', email);
     
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -218,7 +207,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (error) {
-      console.error('Login error:', error);
+      console.error('AuthProvider: Login error:', error);
       setIsLoading(false);
       throw error;
     }
@@ -227,7 +216,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const register = async (userData: Partial<AppUser>) => {
     setIsLoading(true);
-    console.log('Attempting registration for:', userData.email);
+    console.log('AuthProvider: Attempting registration for:', userData.email);
 
     if (!userData.email || !userData.name) {
       throw new Error('Email e nome são obrigatórios');
@@ -237,7 +226,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       email: userData.email,
       password: userData.email, // Temporary password, user should change it
       options: {
-        emailRedirectTo: window.location.origin, // Redirect to root instead of /dashboard
+        emailRedirectTo: window.location.origin,
         data: {
           name: userData.name,
           full_name: userData.name
@@ -246,27 +235,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (error) {
-      console.error('Registration error:', error);
+      console.error('AuthProvider: Registration error:', error);
       setIsLoading(false);
       throw error;
     }
-    // User will be loaded automatically by onAuthStateChange
   };
 
   const logout = async () => {
-    console.log('Logging out user');
+    console.log('AuthProvider: Logging out user');
     const { error } = await supabase.auth.signOut();
     if (error) {
-      console.error('Logout error:', error);
+      console.error('AuthProvider: Logout error:', error);
       throw error;
     }
-    // State will be cleared automatically by onAuthStateChange
   };
 
   const updateUser = async (userData: Partial<AppUser>) => {
     if (!user) throw new Error('No user logged in');
 
-    console.log('Updating user profile:', userData);
+    console.log('AuthProvider: Updating user profile:', userData);
     
     const { error } = await supabase
       .from('profiles')
@@ -283,7 +270,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       .eq('id', user.id);
 
     if (error) {
-      console.error('Error updating user:', error);
+      console.error('AuthProvider: Error updating user:', error);
       throw error;
     }
 

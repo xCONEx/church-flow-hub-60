@@ -528,6 +528,163 @@ export type Database = {
           },
         ]
       }
+      member_evaluations: {
+        Row: {
+          church_id: string
+          commitment: number | null
+          created_at: string | null
+          department_id: string | null
+          evaluation_date: string | null
+          evaluator_id: string
+          id: string
+          leadership_skills: number | null
+          member_id: string
+          notes: string | null
+          overall_rating: number | null
+          punctuality: number | null
+          teamwork: number | null
+          technical_skills: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          church_id: string
+          commitment?: number | null
+          created_at?: string | null
+          department_id?: string | null
+          evaluation_date?: string | null
+          evaluator_id: string
+          id?: string
+          leadership_skills?: number | null
+          member_id: string
+          notes?: string | null
+          overall_rating?: number | null
+          punctuality?: number | null
+          teamwork?: number | null
+          technical_skills?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          church_id?: string
+          commitment?: number | null
+          created_at?: string | null
+          department_id?: string | null
+          evaluation_date?: string | null
+          evaluator_id?: string
+          id?: string
+          leadership_skills?: number | null
+          member_id?: string
+          notes?: string | null
+          overall_rating?: number | null
+          punctuality?: number | null
+          teamwork?: number | null
+          technical_skills?: number | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_evaluations_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_evaluations_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_evaluations_evaluator_id_fkey"
+            columns: ["evaluator_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_evaluations_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profile_history: {
+        Row: {
+          action_type: string
+          changed_by: string
+          church_id: string
+          created_at: string | null
+          department_id: string | null
+          id: string
+          metadata: Json | null
+          new_role: string | null
+          notes: string | null
+          previous_department_id: string | null
+          previous_role: string | null
+          user_id: string
+        }
+        Insert: {
+          action_type: string
+          changed_by: string
+          church_id: string
+          created_at?: string | null
+          department_id?: string | null
+          id?: string
+          metadata?: Json | null
+          new_role?: string | null
+          notes?: string | null
+          previous_department_id?: string | null
+          previous_role?: string | null
+          user_id: string
+        }
+        Update: {
+          action_type?: string
+          changed_by?: string
+          church_id?: string
+          created_at?: string | null
+          department_id?: string | null
+          id?: string
+          metadata?: Json | null
+          new_role?: string | null
+          notes?: string | null
+          previous_department_id?: string | null
+          previous_role?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profile_history_changed_by_fkey"
+            columns: ["changed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_history_church_id_fkey"
+            columns: ["church_id"]
+            isOneToOne: false
+            referencedRelation: "churches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_history_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "profile_history_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar: string | null

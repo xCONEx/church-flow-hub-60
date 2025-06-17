@@ -144,7 +144,7 @@ export const MemberHistoryDialog = ({ trigger, member }: MemberHistoryDialogProp
   const participationRate = Math.round((stats.confirmed / stats.total) * 100);
 
   const averageRating = evaluations.length > 0 
-    ? evaluations.reduce((sum, eval) => sum + (eval.overall_rating || 0), 0) / evaluations.length 
+    ? evaluations.reduce((sum, evaluation) => sum + (evaluation.overall_rating || 0), 0) / evaluations.length 
     : 0;
 
   const renderStars = (rating: number) => {

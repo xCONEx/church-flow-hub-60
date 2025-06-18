@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Department } from '@/types';
-import { useChurchSettings } from '@/hooks/useChurchSettings';
+import { useDepartments } from '@/hooks/useDepartments';
 
 interface AddDepartmentDialogProps {
   trigger: React.ReactNode;
@@ -27,8 +27,8 @@ const departmentTypes = [
   { value: 'custom', label: 'Personalizado' },
 ];
 
-export const AddDepartmentDialog = ({ trigger, departments, onAdd }: AddDepartmentDialogProps) => {
-  const { createDepartment } = useChurchSettings();
+const AddDepartmentDialog = React.memo(({ trigger, departments, onAdd }: AddDepartmentDialogProps) => {
+  const { createDepartment } = useDepartments();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -38,13 +38,17 @@ export const AddDepartmentDialog = ({ trigger, departments, onAdd }: AddDepartme
     parentDepartmentId: '',
   });
 
-  const parentDepartments = departments.filter(dept => !dept.isSubDepartment);
+  // Memoize parent departments to avoid recalculation
+  const parentDepartments = useMemo(() => 
+    departments.filter(dept => !dept.isSubDepartment),
+    [departments]
+  );
 
   const handleSubmit = async () => {
     if (!formData.name || !formData.type) return;
     
     if (formData.isSubDepartment && !formData.parentDepartmentId) {
-      return; // Não permitir sub-departamento sem pai
+      return;
     }
 
     setIsLoading(true);
@@ -69,6 +73,12 @@ export const AddDepartmentDialog = ({ trigger, departments, onAdd }: AddDepartme
     setFormData({ name: '', type: '', isSubDepartment: false, parentDepartmentId: '' });
     setOpen(false);
   };
+
+  // Memoize form validation
+  const isFormValid = useMemo(() => 
+    formData.name && formData.type && (!formData.isSubDepartment || formData.parentDepartmentId),
+    [formData]
+  );
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -148,7 +158,7 @@ export const AddDepartmentDialog = ({ trigger, departments, onAdd }: AddDepartme
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={!formData.name || !formData.type || (formData.isSubDepartment && !formData.parentDepartmentId) || isLoading}
+            disabled={!isFormValid || isLoading}
             className="w-full sm:w-auto"
           >
             {isLoading ? 'Criando...' : 'Criar Departamento'}
@@ -157,4 +167,8 @@ export const AddDepartmentDialog = ({ trigger, departments, onAdd }: AddDepartme
       </DialogContent>
     </Dialog>
   );
-};
+});
+
+AddDepartmentDialog.displayName = 'AddDepartmentDialog';
+
+export { AddDepartmentDialog };

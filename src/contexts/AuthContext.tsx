@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { User as AppUser, Church, AuthContextType } from '@/types';
@@ -11,85 +12,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
   const [session, setSession] = useState<Session | null>(null);
 
-  useEffect(() => {
-    console.log('AuthProvider: Initializing authentication system...');
-    
-    let mounted = true;
-    let authInitialized = false;
-    
-    const initAuth = async () => {
-      try {
-        if (authInitialized) return;
-        authInitialized = true;
-        
-        console.log('AuthProvider: Getting initial session...');
-        const { data: { session: initialSession }, error } = await supabase.auth.getSession();
-        
-        if (error) {
-          console.error('AuthProvider: Error getting initial session:', error);
-          if (mounted) {
-            setIsLoading(false);
-          }
-          return;
-        }
-        
-        console.log('AuthProvider: Initial session:', initialSession ? 'Found' : 'Not found');
-        
-        if (mounted) {
-          setSession(initialSession);
-          if (initialSession?.user) {
-            await loadUserData(initialSession.user);
-          } else {
-            setIsLoading(false);
-          }
-        }
-      } catch (error) {
-        console.error('AuthProvider: Critical error in initAuth:', error);
-        if (mounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!mounted) return;
-        
-        console.log('AuthProvider: Auth state changed:', event, session?.user?.email || 'no session');
-        
-        setSession(session);
-        
-        if (event === 'SIGNED_IN' && session?.user) {
-          await loadUserData(session.user);
-        } else if (event === 'SIGNED_OUT') {
-          setUser(null);
-          setChurch(null);
-          setIsLoading(false);
-        } else if (event === 'TOKEN_REFRESHED' && session?.user) {
-          // Don't reload data on token refresh if we already have user data
-          if (!user) {
-            await loadUserData(session.user);
-          } else {
-            setIsLoading(false);
-          }
-        } else if (!session) {
-          setUser(null);
-          setChurch(null);
-          setIsLoading(false);
-        }
-      }
-    );
-
-    initAuth();
-
-    return () => {
-      mounted = false;
-      subscription.unsubscribe();
-    };
-  }, []); // Removido dependências para evitar loops
-
-  const loadUserData = async (authUser: SupabaseUser) => {
+  const loadUserData = useCallback(async (authUser: SupabaseUser) => {
     if (!authUser) {
       setIsLoading(false);
       return;
@@ -98,20 +21,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('AuthProvider: Loading user data for:', authUser.email);
       
-      // Timeout para evitar loading infinito
-      const timeout = setTimeout(() => {
-        console.warn('AuthProvider: Loading user data timeout');
-        setIsLoading(false);
-      }, 10000);
-      
-      // Load profile
-      const { data: profile, error: profileError } = await supabase
+      // Load profile with timeout
+      const profilePromise = supabase
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
         .single();
 
-      clearTimeout(timeout);
+      const { data: profile, error: profileError } = await Promise.race([
+        profilePromise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Profile load timeout')), 5000)
+        )
+      ]) as any;
 
       if (profileError || !profile) {
         console.log('AuthProvider: Profile not found, creating fallback user');
@@ -119,89 +41,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      console.log('AuthProvider: Profile found successfully');
-
-      // Get user roles with proper error handling
+      // Get user roles
       let userRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
 
-      try {
-        const { data: rolesData, error: rolesError } = await supabase
-          .from('user_roles')
-          .select('role, church_id')
-          .eq('user_id', authUser.id);
+      const { data: rolesData } = await supabase
+        .from('user_roles')
+        .select('role, church_id')
+        .eq('user_id', authUser.id)
+        .limit(10);
 
-        if (rolesError) {
-          console.error('AuthProvider: Error loading roles:', rolesError);
-        }
-
-        if (rolesData && rolesData.length > 0) {
-          // Find highest priority role
-          const roleHierarchy = ['master', 'admin', 'leader', 'collaborator', 'member'];
-          for (const role of roleHierarchy) {
-            const foundRole = rolesData.find(r => r.role === role);
-            if (foundRole) {
-              userRole = foundRole.role as AppUser['role'];
-              churchId = foundRole.church_id;
-              console.log('AuthProvider: User role found:', userRole, 'Church ID:', churchId);
-              break;
-            }
-          }
-        } else {
-          // Fallback for master user
-          if (authUser.email === 'yuriadrskt@gmail.com') {
-            userRole = 'master';
-            console.log('AuthProvider: Using master role fallback');
+      if (rolesData && rolesData.length > 0) {
+        const roleHierarchy = ['master', 'admin', 'leader', 'collaborator', 'member'];
+        for (const role of roleHierarchy) {
+          const foundRole = rolesData.find(r => r.role === role);
+          if (foundRole) {
+            userRole = foundRole.role as AppUser['role'];
+            churchId = foundRole.church_id;
+            break;
           }
         }
-      } catch (roleError) {
-        console.warn('AuthProvider: Error loading user roles:', roleError);
-        if (authUser.email === 'yuriadrskt@gmail.com') {
-          userRole = 'master';
-        }
+      } else if (authUser.email === 'yuriadrskt@gmail.com') {
+        userRole = 'master';
       }
 
-      // Load church data if needed (only if has churchId and not master)
+      // Load church data only if needed
       let churchData: Church | null = null;
       if (churchId && userRole !== 'master') {
-        try {
-          const { data: church, error: churchError } = await supabase
-            .from('churches')
-            .select(`
-              *,
-              departments(*)
-            `)
-            .eq('id', churchId)
-            .single();
+        const { data: church } = await supabase
+          .from('churches')
+          .select('*')
+          .eq('id', churchId)
+          .single();
 
-          if (churchError) {
-            console.warn('AuthProvider: Error loading church:', churchError);
-          } else if (church) {
-            churchData = {
-              id: church.id,
-              name: church.name,
-              address: church.address,
-              phone: church.phone,
-              email: church.email,
-              adminId: church.admin_id,
-              departments: church.departments?.map(dept => ({
-                id: dept.id,
-                name: dept.name,
-                churchId: dept.church_id,
-                leaderId: dept.leader_id,
-                collaborators: [],
-                type: dept.type as any,
-                parentDepartmentId: dept.parent_department_id,
-                isSubDepartment: dept.is_sub_department,
-                createdAt: new Date(dept.created_at)
-              })) || [],
-              serviceTypes: church.service_types || [],
-              courses: [],
-              createdAt: new Date(church.created_at)
-            };
-          }
-        } catch (churchError) {
-          console.warn('AuthProvider: Error loading church data:', churchError);
+        if (church) {
+          churchData = {
+            id: church.id,
+            name: church.name,
+            address: church.address,
+            phone: church.phone,
+            email: church.email,
+            adminId: church.admin_id,
+            departments: [],
+            serviceTypes: church.service_types || [],
+            courses: [],
+            createdAt: new Date(church.created_at)
+          };
         }
       }
 
@@ -221,7 +106,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastActive: new Date()
       };
 
-      console.log('AuthProvider: User data loaded successfully:', userData.email, userData.role);
       setUser(userData);
       setChurch(churchData);
       
@@ -231,9 +115,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  const createFallbackUser = (authUser: SupabaseUser) => {
+  const createFallbackUser = useCallback((authUser: SupabaseUser) => {
     const minimalUser: AppUser = {
       id: authUser.id,
       email: authUser.email!,
@@ -250,46 +134,85 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       lastActive: new Date()
     };
     
-    console.log('AuthProvider: Setting minimal user data as fallback');
     setUser(minimalUser);
     setIsLoading(false);
-  };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    
+    const initAuth = async () => {
+      try {
+        const { data: { session: initialSession } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        setSession(initialSession);
+        if (initialSession?.user) {
+          await loadUserData(initialSession.user);
+        } else {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('AuthProvider: Error in initAuth:', error);
+        if (mounted) setIsLoading(false);
+      }
+    };
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        if (!mounted) return;
+        
+        setSession(session);
+        
+        if (event === 'SIGNED_IN' && session?.user) {
+          await loadUserData(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          setChurch(null);
+          setIsLoading(false);
+        } else if (event === 'TOKEN_REFRESHED' && session?.user && !user) {
+          await loadUserData(session.user);
+        } else if (!session) {
+          setUser(null);
+          setChurch(null);
+          setIsLoading(false);
+        }
+      }
+    );
+
+    initAuth();
+
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
+  }, [loadUserData]); // Apenas loadUserData como dependência
 
   const login = async (email: string, password: string) => {
-    console.log('AuthProvider: Attempting login for:', email);
+    setIsLoading(true);
     
     try {
-      setIsLoading(true);
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
+      const { error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
-      if (error) {
-        console.error('AuthProvider: Login error:', error);
-        throw error;
-      }
-      
-      console.log('AuthProvider: Login successful for:', email);
+      if (error) throw error;
     } catch (error) {
-      console.error('AuthProvider: Login failed:', error);
       setIsLoading(false);
       throw error;
     }
   };
 
   const register = async (userData: { name: string; email: string; phone?: string; password: string }) => {
-    console.log('AuthProvider: Attempting registration for:', userData.email);
-
+    setIsLoading(true);
+    
     try {
-      setIsLoading(true);
-      
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: userData.email,
         password: userData.password,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
           data: {
             name: userData.name,
             full_name: userData.name,
@@ -298,19 +221,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       });
 
-      if (error) {
-        console.error('AuthProvider: Registration error:', error);
-        throw error;
-      }
-
-      console.log('AuthProvider: Registration successful for:', userData.email);
-      
-      if (data.user && !data.user.email_confirmed_at) {
-        console.log('AuthProvider: User needs email confirmation');
-      }
-      
+      if (error) throw error;
     } catch (error) {
-      console.error('AuthProvider: Registration failed:', error);
       throw error;
     } finally {
       setIsLoading(false);
@@ -318,17 +230,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = async () => {
-    console.log('AuthProvider: Logging out user');
+    setIsLoading(true);
     
     try {
-      setIsLoading(true);
       const { error } = await supabase.auth.signOut();
-      if (error) {
-        console.error('AuthProvider: Logout error:', error);
-        throw error;
-      }
+      if (error) throw error;
     } catch (error) {
-      console.error('AuthProvider: Logout failed:', error);
       throw error;
     }
   };
@@ -336,8 +243,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateUser = async (userData: Partial<AppUser>) => {
     if (!user) throw new Error('No user logged in');
 
-    console.log('AuthProvider: Updating user profile');
-    
     const { error } = await supabase
       .from('profiles')
       .update({
@@ -352,12 +257,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       })
       .eq('id', user.id);
 
-    if (error) {
-      console.error('AuthProvider: Error updating user:', error);
-      throw error;
-    }
+    if (error) throw error;
 
-    // Update local state instead of reloading
     setUser(prev => prev ? { ...prev, ...userData } : prev);
   };
 

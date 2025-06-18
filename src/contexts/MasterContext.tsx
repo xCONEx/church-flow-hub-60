@@ -1,14 +1,7 @@
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Church, User } from '@/types';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-
-interface ChurchWithStats extends Church {
-  totalMembers: number;
-  activeMembers: number;
-  lastActivity: Date;
-  isActive: boolean;
-}
+import { useAuth } from '@/contexts/AuthContext';
 
 interface MasterStats {
   totalChurches: number;
@@ -18,26 +11,39 @@ interface MasterStats {
   newUsersThisWeek: number;
 }
 
+interface Activity {
+  id: string;
+  description: string;
+  details: string;
+  timestamp: Date;
+}
+
+interface Church {
+  id: string;
+  name: string;
+  email: string;
+  address?: string;
+  phone?: string;
+  admin_id: string;
+  created_at: string;
+  admin_name?: string;
+}
+
 interface MasterContextType {
-  churches: ChurchWithStats[];
   stats: MasterStats;
-  activities: Array<{
-    id: string;
-    type: 'church_created' | 'admin_added' | 'church_deactivated';
-    description: string;
-    details: string;
-    timestamp: Date;
-  }>;
-  createChurch: (churchData: Partial<Church>) => Promise<void>;
-  updateChurch: (churchId: string, data: Partial<Church>) => Promise<void>;
-  deactivateChurch: (churchId: string) => Promise<void>;
+  activities: Activity[];
+  churches: Church[];
   isLoading: boolean;
+  createChurch: (churchData: any) => Promise<void>;
+  updateChurch: (churchId: string, churchData: any) => Promise<void>;
+  deleteChurch: (churchId: string) => Promise<void>;
+  refreshData: () => Promise<void>;
 }
 
 const MasterContext = createContext<MasterContextType | undefined>(undefined);
 
 export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [churches, setChurches] = useState<ChurchWithStats[]>([]);
+  const { user } = useAuth();
   const [stats, setStats] = useState<MasterStats>({
     totalChurches: 0,
     totalUsers: 0,
@@ -45,80 +51,69 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     newChurchesThisMonth: 0,
     newUsersThisWeek: 0,
   });
-  const [activities, setActivities] = useState<Array<{
-    id: string;
-    type: 'church_created' | 'admin_added' | 'church_deactivated';
-    description: string;
-    details: string;
-    timestamp: Date;
-  }>>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [churches, setChurches] = useState<Church[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    loadRealData();
-  }, []);
+  const loadData = async () => {
+    if (user?.role !== 'master') {
+      setIsLoading(false);
+      return;
+    }
 
-  const loadRealData = async () => {
     try {
-      setIsLoading(true);
-      
-      // Carregar igrejas reais do banco
-      const { data: churchesData, error: churchesError } = await supabase
+      // Load churches
+      const { data: churchesData } = await supabase
         .from('churches')
         .select(`
           *,
-          departments(*)
-        `);
+          profiles!churches_admin_id_fkey(name)
+        `)
+        .order('created_at', { ascending: false });
 
-      if (churchesError) {
-        console.error('Error loading churches:', churchesError);
-        return;
-      }
+      const churchesWithAdminNames = churchesData?.map(church => ({
+        ...church,
+        admin_name: church.profiles?.name || 'Sem nome'
+      })) || [];
 
-      // Converter dados para o formato esperado
-      const churchesWithStats: ChurchWithStats[] = (churchesData || []).map(church => ({
-        id: church.id,
-        name: church.name,
-        address: church.address,
-        phone: church.phone,
-        email: church.email,
-        adminId: church.admin_id,
-        departments: church.departments?.map(dept => ({
-          id: dept.id,
-          name: dept.name,
-          churchId: dept.church_id,
-          leaderId: dept.leader_id,
-          collaborators: [],
-          type: dept.type as any,
-          parentDepartmentId: dept.parent_department_id,
-          isSubDepartment: dept.is_sub_department,
-          createdAt: new Date(dept.created_at)
-        })) || [],
-        serviceTypes: church.service_types || [],
-        courses: [],
-        createdAt: new Date(church.created_at),
-        totalMembers: 0,
-        activeMembers: 0,
-        lastActivity: new Date(),
-        isActive: true,
-      }));
+      setChurches(churchesWithAdminNames);
 
-      setChurches(churchesWithStats);
+      // Load users count
+      const { count: usersCount } = await supabase
+        .from('profiles')
+        .select('*', { count: 'exact', head: true });
 
-      // Calcular estatísticas reais
-      const totalUsers = 0;
-      const activeCount = churchesWithStats.filter(church => church.isActive).length;
-      const thisMonth = new Date();
-      thisMonth.setMonth(thisMonth.getMonth() - 1);
-      const newThisMonth = churchesWithStats.filter(church => church.createdAt > thisMonth).length;
+      // Calculate stats
+      const now = new Date();
+      const oneMonthAgo = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate());
+
+      const newChurchesThisMonth = churchesData?.filter(church => 
+        new Date(church.created_at) >= oneMonthAgo
+      ).length || 0;
 
       setStats({
-        totalChurches: churchesWithStats.length,
-        totalUsers,
-        activeChurches: activeCount,
-        newChurchesThisMonth: newThisMonth,
+        totalChurches: churchesData?.length || 0,
+        totalUsers: usersCount || 0,
+        activeChurches: churchesData?.length || 0,
+        newChurchesThisMonth,
         newUsersThisWeek: 0,
       });
+
+      // Mock activities for now
+      setActivities([
+        {
+          id: '1',
+          description: 'Nova igreja cadastrada',
+          details: 'Igreja Batista Central foi adicionada ao sistema',
+          timestamp: new Date(),
+        },
+        {
+          id: '2',
+          description: 'Usuário registrado',
+          details: 'Novo administrador se registrou no sistema',
+          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
+        },
+      ]);
 
     } catch (error) {
       console.error('Error loading master data:', error);
@@ -127,122 +122,77 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   };
 
-  const createChurch = async (churchData: Partial<Church>) => {
+  const createChurch = async (churchData: any) => {
+    // This function will handle church creation
+    await loadData(); // Refresh data after creation
+  };
+
+  const updateChurch = async (churchId: string, churchData: any) => {
     try {
-      setIsLoading(true);
-      console.log('Creating church with data:', churchData);
-      
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('churches')
-        .insert({
+        .update({
           name: churchData.name,
           address: churchData.address,
           phone: churchData.phone,
           email: churchData.email,
-          admin_id: churchData.adminId, // adminId já deve ser um UUID válido
-          service_types: churchData.serviceTypes || [],
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Error creating church:', error);
-        throw error;
-      }
-
-      console.log('Church created successfully:', data);
-      
-      // Atualizar o role do admin com o church_id
-      if (churchData.adminId) {
-        const { error: roleUpdateError } = await supabase
-          .from('user_roles')
-          .update({ church_id: data.id })
-          .eq('user_id', churchData.adminId)
-          .eq('role', 'admin');
-
-        if (roleUpdateError) {
-          console.error('Error updating admin role:', roleUpdateError);
-        }
-      }
-      
-      // Recarregar dados
-      await loadRealData();
-      
-    } catch (error) {
-      console.error('Failed to create church:', error);
-      throw error;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const updateChurch = async (churchId: string, data: Partial<Church>) => {
-    try {
-      setIsLoading(true);
-      
-      const { error } = await supabase
-        .from('churches')
-        .update({
-          name: data.name,
-          address: data.address,
-          phone: data.phone,
-          email: data.email,
-          admin_id: data.adminId,
-          service_types: data.serviceTypes,
         })
         .eq('id', churchId);
 
-      if (error) {
-        console.error('Error updating church:', error);
-        throw error;
-      }
+      if (error) throw error;
 
-      console.log(`Church ${churchId} updated successfully`);
-      
-      // Recarregar dados
-      await loadRealData();
-      
+      // Refresh data
+      await loadData();
     } catch (error) {
-      console.error('Failed to update church:', error);
+      console.error('Error updating church:', error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
   };
 
-  const deactivateChurch = async (churchId: string) => {
+  const deleteChurch = async (churchId: string) => {
     try {
-      setIsLoading(true);
+      // Delete related data first
+      await supabase.from('user_roles').delete().eq('church_id', churchId);
+      await supabase.from('departments').delete().eq('church_id', churchId);
       
-      // Por enquanto, só removemos da lista local
-      // Depois implementaremos soft delete no banco
-      setChurches(prev => prev.filter(church => church.id !== churchId));
-      
-      setStats(prev => ({
-        ...prev,
-        activeChurches: prev.activeChurches - 1,
-      }));
+      // Delete the church
+      const { error } = await supabase
+        .from('churches')
+        .delete()
+        .eq('id', churchId);
 
-      console.log(`Church ${churchId} deactivated`);
-      
+      if (error) throw error;
+
+      // Refresh data
+      await loadData();
     } catch (error) {
-      console.error('Failed to deactivate church:', error);
+      console.error('Error deleting church:', error);
       throw error;
-    } finally {
-      setIsLoading(false);
     }
+  };
+
+  const refreshData = async () => {
+    setIsLoading(true);
+    await loadData();
+  };
+
+  useEffect(() => {
+    loadData();
+  }, [user]);
+
+  const value: MasterContextType = {
+    stats,
+    activities,
+    churches,
+    isLoading,
+    createChurch,
+    updateChurch,
+    deleteChurch,
+    refreshData,
   };
 
   return (
-    <MasterContext.Provider value={{
-      churches,
-      stats,
-      activities,
-      createChurch,
-      updateChurch,
-      deactivateChurch,
-      isLoading,
-    }}>
+    <MasterContext.Provider value={value}>
       {children}
     </MasterContext.Provider>
   );

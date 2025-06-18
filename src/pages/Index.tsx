@@ -8,36 +8,18 @@ import { Church } from 'lucide-react';
 const Index = () => {
   const navigate = useNavigate();
   const { user, isLoading } = useAuth();
-  const [hasRedirected, setHasRedirected] = useState(false);
+  const [redirected, setRedirected] = useState(false);
 
   useEffect(() => {
-    // Timeout de segurança para evitar loading infinito
-    const safetyTimeout = setTimeout(() => {
-      if (isLoading && !user) {
-        console.warn('Index: Safety timeout reached, stopping loading');
-        setHasRedirected(true);
-      }
-    }, 15000);
-
-    // Só processa depois que o auth terminou de carregar
-    if (!isLoading && user && !hasRedirected) {
-      console.log('Index: User authenticated, redirecting...', { 
-        email: user.email, 
-        role: user.role 
-      });
-      
-      setHasRedirected(true);
+    if (!isLoading && user && !redirected) {
+      setRedirected(true);
       const targetPath = user.role === 'master' ? '/master-dashboard' : '/dashboard';
-      
-      // Redirect immediately
       navigate(targetPath, { replace: true });
     }
+  }, [user, isLoading, navigate, redirected]);
 
-    return () => clearTimeout(safetyTimeout);
-  }, [user, isLoading, navigate, hasRedirected]);
-
-  // Show loading while determining auth state or while redirecting
-  if ((isLoading && !hasRedirected) || (user && !hasRedirected)) {
+  // Show loading
+  if (isLoading || (user && !redirected)) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
         <div className="text-center">
@@ -49,7 +31,7 @@ const Index = () => {
                 <p className="text-sm text-gray-500">Redirecionando...</p>
               </>
             ) : (
-              <p className="text-gray-600">Verificando autenticação...</p>
+              <p className="text-gray-600">Carregando...</p>
             )}
           </div>
         </div>
@@ -57,7 +39,6 @@ const Index = () => {
     );
   }
 
-  // Show login interface if no user and auth check is complete
   return <Login />;
 };
 

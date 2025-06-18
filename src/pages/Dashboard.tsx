@@ -1,3 +1,4 @@
+
 import { 
   Users, 
   Calendar, 
@@ -14,68 +15,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-
-// Mock data for calculations
-const mockMembers = [
-  { id: '1', name: 'Pastor João', role: 'admin', departmentId: '1' },
-  { id: '2', name: 'Ana Karolina', role: 'leader', departmentId: '1' },
-  { id: '3', name: 'Yuri Adriel', role: 'collaborator', departmentId: '1' },
-  { id: '4', name: 'Maria Silva', role: 'member', departmentId: '1' },
-  { id: '5', name: 'João Pedro', role: 'collaborator', departmentId: '2' },
-  { id: '6', name: 'Arthur', role: 'collaborator', departmentId: '1' },
-  { id: '7', name: 'Carlos Santos', role: 'member', departmentId: '1' },
-  { id: '8', name: 'Pedro Costa', role: 'collaborator', departmentId: '1' },
-  { id: '9', name: 'Juliana', role: 'member', departmentId: '1' },
-  { id: '10', name: 'Alexandre', role: 'leader', departmentId: '2' },
-];
-
-const mockScales = [
-  {
-    id: '1',
-    title: 'Culto Domingo Manhã',
-    date: new Date('2024-12-15'),
-    status: 'published',
-    totalMembers: 6,
-    confirmedMembers: 4,
-  },
-  {
-    id: '2',
-    title: 'Reunião de Oração',
-    date: new Date('2024-12-17'),
-    status: 'published',
-    totalMembers: 4,
-    confirmedMembers: 3,
-  },
-  {
-    id: '3',
-    title: 'Culto Domingo Noite',
-    date: new Date('2024-12-15'),
-    status: 'published',
-    totalMembers: 3,
-    confirmedMembers: 3,
-  },
-  {
-    id: '4',
-    title: 'Ensaio Geral',
-    date: new Date('2024-12-20'),
-    status: 'draft',
-    totalMembers: 8,
-    confirmedMembers: 5,
-  },
-];
-
-const mockSongs = [
-  { id: '1', title: 'Eu Creio em Ti', artist: 'Hillsong' },
-  { id: '2', title: 'Pra Te Adorar Eu Vivo', artist: 'Diante do Trono' },
-  { id: '3', title: 'Eu Vou Construir', artist: 'Pat Barrett' },
-  { id: '4', title: 'Cornerstone', artist: 'Hillsong' },
-  { id: '5', title: 'Reckless Love', artist: 'Cory Asbury' },
-  { id: '6', title: 'Oceans', artist: 'Hillsong United' },
-  { id: '7', title: 'Way Maker', artist: 'Sinach' },
-  { id: '8', title: 'Goodness of God', artist: 'Bethel Music' },
-];
 
 export const Dashboard = () => {
   const { user, church } = useAuth();
@@ -89,31 +30,22 @@ export const Dashboard = () => {
     }
   }, [user, navigate]);
 
-  // Calculate real stats
-  const stats = useMemo(() => {
-    const activeScales = mockScales.filter(scale => scale.status === 'published');
-    const totalInvited = activeScales.reduce((sum, scale) => sum + scale.totalMembers, 0);
-    const totalConfirmed = activeScales.reduce((sum, scale) => sum + scale.confirmedMembers, 0);
-    const participationRate = totalInvited > 0 ? Math.round((totalConfirmed / totalInvited) * 100) : 0;
-
-    return {
-      totalMembers: mockMembers.length,
-      activeScales: activeScales.length,
-      totalSongs: mockSongs.length,
-      participationRate: `${participationRate}%`,
-    };
-  }, []);
+  // Stats zerados para começar limpo
+  const stats = {
+    totalMembers: 0,
+    activeScales: 0,
+    totalSongs: 0,
+    participationRate: "0%",
+  };
 
   // Define which stats to show based on user role
   const getStatsForUser = () => {
-    const canViewMemberStats = user?.role === 'admin' || user?.role === 'leader';
-    
     const allStats = [
       {
         title: "Total de Membros",
         value: stats.totalMembers,
-        change: "+2 este mês",
-        changeType: "positive" as const,
+        change: "Comece adicionando membros",
+        changeType: "neutral" as const,
         icon: Users,
         gradient: "from-blue-500 to-blue-600",
         showFor: ['admin', 'leader']
@@ -121,7 +53,7 @@ export const Dashboard = () => {
       {
         title: "Escalas Ativas",
         value: stats.activeScales,
-        change: `${mockScales.filter(s => s.status === 'draft').length} rascunhos`,
+        change: "Nenhuma escala criada",
         changeType: "neutral" as const,
         icon: Calendar,
         gradient: "from-green-500 to-green-600",
@@ -130,8 +62,8 @@ export const Dashboard = () => {
       {
         title: "Músicas Cadastradas",
         value: stats.totalSongs,
-        change: "+2 esta semana",
-        changeType: "positive" as const,
+        change: "Adicione seu repertório",
+        changeType: "neutral" as const,
         icon: Music,
         gradient: "from-purple-500 to-purple-600",
         showFor: ['admin', 'leader', 'collaborator', 'member']
@@ -139,8 +71,8 @@ export const Dashboard = () => {
       {
         title: "Taxa de Participação",
         value: stats.participationRate,
-        change: "+3% vs mês anterior",
-        changeType: "positive" as const,
+        change: "Sem dados ainda",
+        changeType: "neutral" as const,
         icon: TrendingUp,
         gradient: "from-orange-500 to-orange-600",
         showFor: ['admin', 'leader']
@@ -154,75 +86,11 @@ export const Dashboard = () => {
 
   const statsData = getStatsForUser();
 
-  // Dados das próximas escalas com datas mais realistas
-  const upcomingScales = [
-    {
-      id: 1,
-      title: "Culto Domingo Manhã",
-      date: "2024-12-15",
-      time: "09:00",
-      department: "Louvor",
-      confirmed: 4,
-      total: 6
-    },
-    {
-      id: 2,
-      title: "Reunião de Oração",
-      date: "2024-12-17",
-      time: "19:30",
-      department: "Louvor",
-      confirmed: 3,
-      total: 4
-    },
-    {
-      id: 3,
-      title: "Culto Domingo Noite",
-      date: "2024-12-15",
-      time: "19:00",
-      department: "Mídia",
-      confirmed: 2,
-      total: 3
-    }
-  ];
+  // Dados vazios - sem escalas
+  const upcomingScales: any[] = [];
 
-  const recentActivities = [
-    {
-      id: 1,
-      type: "scale",
-      title: "Nova escala criada: Culto Domingo",
-      time: "2 horas atrás",
-      user: "Pastor João",
-      icon: Calendar,
-      color: "text-blue-600"
-    },
-    {
-      id: 2,
-      type: "member",
-      title: "Maria Silva confirmou presença",
-      time: "4 horas atrás",
-      user: "Maria Silva",
-      icon: CheckCircle,
-      color: "text-green-600"
-    },
-    {
-      id: 3,
-      type: "song",
-      title: "Nova música adicionada: 'Reckless Love'",
-      time: "6 horas atrás",
-      user: "João Músico",
-      icon: Music,
-      color: "text-purple-600"
-    },
-    {
-      id: 4,
-      type: "alert",
-      title: "Lembrete: Ensaio hoje às 19h",
-      time: "8 horas atrás",
-      user: "Sistema",
-      icon: AlertCircle,
-      color: "text-orange-600"
-    }
-  ];
+  // Atividades vazias
+  const recentActivities: any[] = [];
 
   const handleQuickAction = (action: string) => {
     switch (action) {
@@ -294,7 +162,6 @@ export const Dashboard = () => {
     </div>
   );
 
-  // Check if user can see quick actions
   const canViewQuickActions = user?.role === 'admin' || user?.role === 'leader';
 
   return (
@@ -306,8 +173,8 @@ export const Dashboard = () => {
             Olá, {user?.name}! 👋
           </h2>
           <p className="text-blue-100 mb-4">
-            Bem-vindo ao painel de controle da {church?.name}. 
-            Aqui você pode acompanhar todas as atividades ministeriais.
+            Bem-vindo ao painel de controle da {church?.name || 'sua igreja'}. 
+            Comece adicionando membros e criando suas primeiras escalas.
           </p>
           <Dialog open={tutorialOpen} onOpenChange={setTutorialOpen}>
             <DialogTrigger asChild>
@@ -348,23 +215,17 @@ export const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {recentActivities.map((activity) => (
-                  <div key={activity.id} className="flex items-start space-x-4 p-3 rounded-lg hover:bg-muted/50 transition-colors">
-                    <div className={`p-2 rounded-full bg-muted ${activity.color}`}>
-                      <activity.icon className="h-4 w-4" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium">
-                        {activity.title}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {activity.time} • {activity.user}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              {recentActivities.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <AlertCircle className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>Nenhuma atividade ainda</p>
+                  <p className="text-sm">As atividades aparecerão aqui quando você começar a usar o sistema</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Activities would appear here */}
+                </div>
+              )}
             </CardContent>
           </Card>
 
@@ -380,37 +241,23 @@ export const Dashboard = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
-                {upcomingScales.map((scale) => (
-                  <div key={scale.id} className="p-3 border rounded-lg">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h4 className="text-sm font-medium mb-1">
-                          {scale.title}
-                        </h4>
-                        <p className="text-xs text-muted-foreground mb-2">
-                          {new Date(scale.date).toLocaleDateString('pt-BR')} • {scale.time}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full">
-                            {scale.department}
-                          </span>
-                          <span className="text-xs text-muted-foreground">
-                            {scale.confirmed}/{scale.total} confirmados
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              <Button 
-                variant="outline" 
-                className="w-full mt-4"
-                onClick={() => navigate('/scales')}
-              >
-                Ver Todas as Escalas
-              </Button>
+              {upcomingScales.length === 0 ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                  <p>Nenhuma escala criada</p>
+                  <p className="text-sm mb-4">Comece criando sua primeira escala</p>
+                  <Button 
+                    size="sm"
+                    onClick={() => navigate('/scales')}
+                  >
+                    Criar Escala
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Scales would appear here */}
+                </div>
+              )}
             </CardContent>
           </Card>
         </div>

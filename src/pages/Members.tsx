@@ -3,113 +3,23 @@ import { useState } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { UserPlus, Search, Phone, Mail, Edit, History, UserX } from 'lucide-react';
+import { UserPlus, Search, Users, Building, UserCheck } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddMemberDialog } from '@/components/AddMemberDialog';
-import { EditMemberDialog } from '@/components/EditMemberDialog';
-import { MemberHistoryDialog } from '@/components/MemberHistoryDialog';
-import { useToast } from '@/hooks/use-toast';
-
-// Mock data
-const initialMembers = [
-  {
-    id: '1',
-    name: 'Ana Karolina Silva',
-    email: 'ana@igreja.com',
-    phone: '(11) 99999-1111',
-    avatar: '/placeholder.svg',
-    departments: ['Louvor'],
-    role: 'collaborator',
-    skills: ['Vocal Principal', 'Vocal'],
-    experience: 9,
-    joinedAt: new Date('2023-01-15'),
-    lastActive: new Date(),
-  },
-  {
-    id: '2',
-    name: 'Yuri Adriel Santos',
-    email: 'yuri@igreja.com',
-    phone: '(11) 99999-2222',
-    avatar: '/placeholder.svg',
-    departments: ['Louvor'],
-    role: 'collaborator',
-    skills: ['Guitarra', 'Violão'],
-    experience: 8,
-    joinedAt: new Date('2023-03-20'),
-    lastActive: new Date(),
-  },
-  {
-    id: '3',
-    name: 'Arthur Oliveira',
-    email: 'arthur@igreja.com',
-    phone: '(11) 99999-3333',
-    avatar: '/placeholder.svg',
-    departments: ['Louvor'],
-    role: 'member',
-    skills: ['Bateria', 'Cajon'],
-    experience: 7,
-    joinedAt: new Date('2023-05-10'),
-    lastActive: new Date(),
-  },
-  {
-    id: '4',
-    name: 'João Pedro Costa',
-    email: 'joao@igreja.com',
-    phone: '(11) 99999-4444',
-    avatar: '/placeholder.svg',
-    departments: ['Mídia'],
-    role: 'member',
-    skills: ['Projeção', 'Fotografia'],
-    experience: 6,
-    joinedAt: new Date('2023-07-05'),
-    lastActive: new Date(),
-  },
-  {
-    id: '5',
-    name: 'Alexandre Ferreira',
-    email: 'alex@igreja.com',
-    phone: '(11) 99999-5555',
-    avatar: '/placeholder.svg',
-    departments: ['Mídia', 'Louvor'],
-    role: 'leader',
-    skills: ['Sonoplastia', 'Teclado'],
-    experience: 8,
-    joinedAt: new Date('2023-02-12'),
-    lastActive: new Date(),
-  }
-];
-
-const experienceLabels = {
-  0: 'Iniciante',
-  1: 'Iniciante',
-  2: 'Iniciante',
-  3: 'Treinamento',
-  4: 'Treinamento',
-  5: 'Intermediário',
-  6: 'Intermediário',
-  7: 'Avançado',
-  8: 'Avançado',
-  9: 'Experiente',
-  10: 'Experiente'
-};
 
 export const Members = () => {
   const { user } = useAuth();
-  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('all');
-  const [members, setMembers] = useState(initialMembers);
+  const [members] = useState([]); // Começar com array vazio
 
-  const filteredMembers = members.filter(member => {
-    const matchesSearch = member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         member.email.toLowerCase().includes(searchTerm.toLowerCase());
+  const filteredMembers = members.filter((member: any) => {
+    const matchesSearch = member.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         member.email?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesDepartment = departmentFilter === 'all' || 
-                             member.departments.includes(departmentFilter);
+                             member.departments?.includes(departmentFilter);
     
     return matchesSearch && matchesDepartment;
   });
@@ -117,54 +27,8 @@ export const Members = () => {
   const canEditMembers = user?.role === 'admin' || user?.role === 'leader';
 
   const handleAddMember = (memberData: any) => {
-    const newMember = {
-      ...memberData,
-      id: Date.now().toString(),
-      avatar: '/placeholder.svg',
-      departments: memberData.department ? [memberData.department] : [],
-      experience: memberData.experience === 'beginner' ? 3 : 
-                  memberData.experience === 'intermediate' ? 6 : 8,
-      joinedAt: new Date(),
-      lastActive: new Date(),
-    };
-
-    setMembers(prev => [...prev, newMember]);
-    toast({
-      title: "Membro Adicionado",
-      description: `${memberData.name} foi adicionado com sucesso.`,
-    });
-  };
-
-  const handleEditMember = (updatedMember: any) => {
-    setMembers(prev => prev.map(member => 
-      member.id === updatedMember.id ? {
-        ...updatedMember,
-        departments: updatedMember.department ? [updatedMember.department] : updatedMember.departments,
-        experience: updatedMember.experience === 'beginner' ? 3 : 
-                   updatedMember.experience === 'intermediate' ? 6 : 8,
-      } : member
-    ));
-    toast({
-      title: "Membro Atualizado",
-      description: `Os dados de ${updatedMember.name} foram atualizados.`,
-    });
-  };
-
-  const handleRemoveMember = (memberId: string, memberName: string) => {
-    setMembers(prev => prev.filter(member => member.id !== memberId));
-    toast({
-      title: "Membro Removido",
-      description: `${memberName} foi removido com sucesso.`,
-    });
-  };
-
-  const getRoleDisplay = (role: string) => {
-    const roleMap = {
-      member: 'Membro',
-      collaborator: 'Colaborador',
-      leader: 'Líder'
-    };
-    return roleMap[role as keyof typeof roleMap] || role;
+    // Implementar lógica para adicionar membro real
+    console.log('Member to add:', memberData);
   };
 
   return (
@@ -224,159 +88,111 @@ export const Members = () => {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-blue-600">{members.length}</div>
+              <div className="text-2xl font-bold text-blue-600">0</div>
               <p className="text-sm text-gray-600">Total de Membros</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-green-600">
-                {members.filter(m => m.departments.includes('Louvor')).length}
-              </div>
+              <div className="text-2xl font-bold text-green-600">0</div>
               <p className="text-sm text-gray-600">Ministério de Louvor</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-purple-600">
-                {members.filter(m => m.departments.includes('Mídia')).length}
-              </div>
+              <div className="text-2xl font-bold text-purple-600">0</div>
               <p className="text-sm text-gray-600">Ministério de Mídia</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-orange-600">
-                {members.filter(m => m.experience >= 7).length}
-              </div>
+              <div className="text-2xl font-bold text-orange-600">0</div>
               <p className="text-sm text-gray-600">Membros Experientes</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Members List */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredMembers.map((member) => (
-            <Card key={member.id} className="hover:shadow-lg transition-shadow">
-              <CardHeader className="pb-3">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center space-x-3">
-                    <Avatar className="h-12 w-12">
-                      <AvatarImage src={member.avatar} alt={member.name} />
-                      <AvatarFallback>
-                        {member.name.split(' ').map(n => n[0]).join('')}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <h3 className="font-semibold text-gray-900">{member.name}</h3>
-                      <p className="text-sm text-gray-600">{getRoleDisplay(member.role)}</p>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Mail className="h-4 w-4" />
-                  <span>{member.email}</span>
-                </div>
-                <div className="flex items-center space-x-2 text-sm text-gray-600">
-                  <Phone className="h-4 w-4" />
-                  <span>{member.phone}</span>
-                </div>
-                
-                <div className="flex flex-wrap gap-2">
-                  {member.departments.map((dept) => (
-                    <Badge key={dept} variant="secondary">
-                      {dept}
-                    </Badge>
-                  ))}
-                </div>
-
-                {member.skills && member.skills.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {member.skills.slice(0, 3).map((skill) => (
-                      <Badge key={skill} variant="outline" className="text-xs">
-                        {skill}
-                      </Badge>
-                    ))}
-                    {member.skills.length > 3 && (
-                      <Badge variant="outline" className="text-xs">
-                        +{member.skills.length - 3}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-                
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Experiência:</span>
-                    <span className="font-medium">
-                      {experienceLabels[member.experience as keyof typeof experienceLabels]}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 rounded-full h-2">
-                    <div 
-                      className="bg-gradient-to-r from-blue-500 to-purple-500 h-2 rounded-full"
-                      style={{ width: `${member.experience * 10}%` }}
-                    />
-                  </div>
-                </div>
-
+        {/* Empty State */}
+        {filteredMembers.length === 0 && (
+          <Card>
+            <CardContent className="p-12">
+              <div className="text-center">
+                <Users className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  Nenhum membro cadastrado
+                </h3>
+                <p className="text-gray-600 mb-6">
+                  Comece adicionando os primeiros membros da sua equipe ministerial.
+                </p>
                 {canEditMembers && (
-                  <div className="flex flex-col space-y-2 pt-2 border-t">
-                    <div className="flex space-x-2">
-                      <EditMemberDialog
-                        trigger={
-                          <Button variant="outline" size="sm" className="flex-1">
-                            <Edit className="h-4 w-4 mr-1" />
-                            Editar
-                          </Button>
-                        }
-                        member={member}
-                        onEdit={handleEditMember}
-                      />
-                      <MemberHistoryDialog
-                        trigger={
-                          <Button variant="outline" size="sm" className="flex-1">
-                            <History className="h-4 w-4 mr-1" />
-                            Histórico
-                          </Button>
-                        }
-                        member={member}
-                      />
-                    </div>
-                    <AlertDialog>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="sm" className="w-full">
-                          <UserX className="h-4 w-4 mr-1" />
-                          Remover Membro
-                        </Button>
-                      </AlertDialogTrigger>
-                      <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Confirmar Remoção</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Tem certeza que deseja remover <strong>{member.name}</strong> da equipe? 
-                            Esta ação não pode ser desfeita.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                          <AlertDialogAction 
-                            onClick={() => handleRemoveMember(member.id, member.name)}
-                            className="bg-red-600 hover:bg-red-700"
-                          >
-                            Remover
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
-                      </AlertDialogContent>
-                    </AlertDialog>
-                  </div>
+                  <AddMemberDialog
+                    trigger={
+                      <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
+                        <UserPlus className="h-4 w-4 mr-2" />
+                        Adicionar Primeiro Membro
+                      </Button>
+                    }
+                    onAdd={handleAddMember}
+                  />
                 )}
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Getting Started Guide */}
+        {members.length === 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <UserCheck className="h-5 w-5 mr-2" />
+                Como começar
+              </CardTitle>
+              <CardDescription>
+                Passos para organizar sua equipe ministerial
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                    1
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Adicione membros da equipe</h4>
+                    <p className="text-sm text-gray-600">
+                      Cadastre músicos, operadores de som, mídia e outros colaboradores
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                    2
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Organize por departamentos</h4>
+                    <p className="text-sm text-gray-600">
+                      Defina quem pertence ao louvor, mídia, ministração, etc.
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">
+                    3
+                  </div>
+                  <div>
+                    <h4 className="font-medium">Defina habilidades e experiência</h4>
+                    <p className="text-sm text-gray-600">
+                      Registre instrumentos, funções e nível de experiência de cada membro
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </DashboardLayout>
   );

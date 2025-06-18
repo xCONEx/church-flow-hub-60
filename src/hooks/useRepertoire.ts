@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -23,29 +23,33 @@ export const useRepertoire = () => {
   const { church, user } = useAuth();
   const { toast } = useToast();
   const [songs, setSongs] = useState<Song[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  const loadSongs = async () => {
-    if (!church?.id) {
-      setIsLoading(false);
-      return;
-    }
+  const loadSongs = useCallback(async () => {
+    if (!church?.id || isLoading) return;
 
+    setIsLoading(true);
     try {
+      console.log('Loading songs for church:', church.id);
+      
       const { data, error } = await supabase
         .from('songs')
         .select('*')
         .eq('church_id', church.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading songs:', error);
+        throw error;
+      }
 
       const formattedSongs: Song[] = (data || []).map(song => ({
         id: song.id,
         title: song.title,
         artist: song.artist,
-        originalKey: song.key, // Usando 'key' do banco
-        category: song.genre || 'Adoração', // Usando 'genre' como categoria
+        originalKey: song.key,
+        category: song.genre || 'Adoração',
         youtubeUrl: song.youtube_url,
         cifraUrl: song.cifra_url,
         lyrics: song.lyrics,
@@ -56,6 +60,7 @@ export const useRepertoire = () => {
       }));
 
       setSongs(formattedSongs);
+      console.log('Songs loaded:', formattedSongs.length);
     } catch (error) {
       console.error('Error loading songs:', error);
       toast({
@@ -65,20 +70,23 @@ export const useRepertoire = () => {
       });
     } finally {
       setIsLoading(false);
+      setHasLoaded(true);
     }
-  };
+  }, [church?.id, toast]);
 
   const addSong = async (songData: Omit<Song, 'id' | 'churchId' | 'createdAt' | 'hasLyrics'>) => {
     if (!church?.id || !user?.id) return;
 
     try {
+      console.log('Adding song:', songData);
+      
       const { data, error } = await supabase
         .from('songs')
         .insert({
           title: songData.title,
           artist: songData.artist,
-          key: songData.originalKey, // Mapeando para 'key'
-          genre: songData.category, // Mapeando para 'genre'
+          key: songData.originalKey,
+          genre: songData.category,
           youtube_url: songData.youtubeUrl,
           cifra_url: songData.cifraUrl,
           lyrics: songData.lyrics,
@@ -89,13 +97,18 @@ export const useRepertoire = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error adding song:', error);
+        throw error;
+      }
 
+      console.log('Song added successfully:', data);
       toast({
         title: "Sucesso",
         description: "Música adicionada ao repertório!",
       });
 
+      // Reload songs after adding
       await loadSongs();
     } catch (error) {
       console.error('Error adding song:', error);
@@ -111,6 +124,8 @@ export const useRepertoire = () => {
     if (!church?.id) return;
 
     try {
+      console.log('Updating song:', songId, songData);
+      
       const { error } = await supabase
         .from('songs')
         .update({
@@ -126,8 +141,12 @@ export const useRepertoire = () => {
         .eq('id', songId)
         .eq('church_id', church.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error updating song:', error);
+        throw error;
+      }
 
+      console.log('Song updated successfully');
       toast({
         title: "Sucesso",
         description: "Música atualizada com sucesso!",
@@ -148,14 +167,20 @@ export const useRepertoire = () => {
     if (!church?.id) return;
 
     try {
+      console.log('Deleting song:', songId);
+      
       const { error } = await supabase
         .from('songs')
         .delete()
         .eq('id', songId)
         .eq('church_id', church.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting song:', error);
+        throw error;
+      }
 
+      console.log('Song deleted successfully');
       toast({
         title: "Sucesso",
         description: "Música removida do repertório!",
@@ -172,9 +197,12 @@ export const useRepertoire = () => {
     }
   };
 
+  // Load songs only once when church is available
   useEffect(() => {
-    loadSongs();
-  }, [church?.id]);
+    if (church?.id && !hasLoaded && !isLoading) {
+      loadSongs();
+    }
+  }, [church?.id, hasLoaded, isLoading, loadSongs]);
 
   return {
     songs,

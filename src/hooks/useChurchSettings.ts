@@ -11,10 +11,11 @@ export const useChurchSettings = () => {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
   const [departmentCounts, setDepartmentCounts] = useState<Record<string, number>>({});
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadDepartments = useCallback(async () => {
-    if (!church?.id) return;
+    if (!church?.id || isLoading) return;
 
     try {
       console.log('Loading departments for church:', church.id);
@@ -25,7 +26,10 @@ export const useChurchSettings = () => {
         .eq('church_id', church.id)
         .order('created_at', { ascending: true });
 
-      if (deptError) throw deptError;
+      if (deptError) {
+        console.error('Error loading departments:', deptError);
+        throw deptError;
+      }
 
       const deptArray: Department[] = [];
       
@@ -45,7 +49,7 @@ export const useChurchSettings = () => {
         }
       }
 
-      console.log('Departments loaded:', deptArray);
+      console.log('Departments loaded:', deptArray.length);
       setDepartments(deptArray);
 
       // Carregar contadores de colaboradores usando user_departments
@@ -66,6 +70,7 @@ export const useChurchSettings = () => {
       }
       
       setDepartmentCounts(counts);
+      console.log('Department counts loaded:', counts);
 
     } catch (error) {
       console.error('Error loading departments:', error);
@@ -75,12 +80,14 @@ export const useChurchSettings = () => {
         variant: "destructive",
       });
     }
-  }, [church?.id]);
+  }, [church?.id, toast, isLoading]);
 
   const loadServiceTypes = useCallback(async () => {
     if (!church?.id) return;
 
     try {
+      console.log('Loading service types for church:', church.id);
+      
       const { data: churchData } = await supabase
         .from('churches')
         .select('service_types')
@@ -89,47 +96,58 @@ export const useChurchSettings = () => {
 
       if (churchData?.service_types) {
         setServiceTypes(churchData.service_types);
+        console.log('Service types loaded:', churchData.service_types);
       } else {
         // Tipos de serviços padrão
-        setServiceTypes([
+        const defaultTypes = [
           'Culto Domingo Manhã',
           'Culto Domingo Noite', 
           'Reunião de Oração',
           'Culto de Jovens'
-        ]);
+        ];
+        setServiceTypes(defaultTypes);
+        console.log('Default service types set:', defaultTypes);
       }
     } catch (error) {
       console.error('Error loading service types:', error);
       // Usar tipos padrão em caso de erro
-      setServiceTypes([
+      const defaultTypes = [
         'Culto Domingo Manhã',
         'Culto Domingo Noite', 
         'Reunião de Oração',
         'Culto de Jovens'
-      ]);
+      ];
+      setServiceTypes(defaultTypes);
     }
   }, [church?.id]);
 
   const loadData = useCallback(async () => {
-    if (!church?.id) {
-      setIsLoading(false);
-      return;
-    }
+    if (!church?.id || isLoading) return;
 
     setIsLoading(true);
-    await Promise.all([loadDepartments(), loadServiceTypes()]);
-    setIsLoading(false);
-  }, [church?.id, loadDepartments, loadServiceTypes]);
+    try {
+      await Promise.all([loadDepartments(), loadServiceTypes()]);
+    } finally {
+      setIsLoading(false);
+      setHasLoaded(true);
+    }
+  }, [church?.id, loadDepartments, loadServiceTypes, isLoading]);
 
   const handleDeleteDepartment = async (id: string) => {
     try {
+      console.log('Deleting department:', id);
+      
       const { error } = await supabase
         .from('departments')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting department:', error);
+        throw error;
+      }
 
+      console.log('Department deleted successfully');
       toast({
         title: "Sucesso",
         description: "Departamento removido com sucesso",
@@ -150,6 +168,8 @@ export const useChurchSettings = () => {
     if (!church?.id) return;
 
     try {
+      console.log('Deleting service type:', name);
+      
       const updatedTypes = serviceTypes.filter(type => type !== name);
       
       const { error } = await supabase
@@ -157,9 +177,13 @@ export const useChurchSettings = () => {
         .update({ service_types: updatedTypes })
         .eq('id', church.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error deleting service type:', error);
+        throw error;
+      }
 
       setServiceTypes(updatedTypes);
+      console.log('Service type deleted successfully');
       
       toast({
         title: "Sucesso",
@@ -176,8 +200,10 @@ export const useChurchSettings = () => {
   };
 
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (church?.id && !hasLoaded && !isLoading) {
+      loadData();
+    }
+  }, [church?.id, hasLoaded, isLoading, loadData]);
 
   return {
     departments,

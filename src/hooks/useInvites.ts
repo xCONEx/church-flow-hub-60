@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -23,15 +23,16 @@ export const useInvites = () => {
   const { church, user } = useAuth();
   const { toast } = useToast();
   const [invites, setInvites] = useState<Invite[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  const loadInvites = async () => {
-    if (!church?.id) {
-      setIsLoading(false);
-      return;
-    }
+  const loadInvites = useCallback(async () => {
+    if (!church?.id || isLoading) return;
 
+    setIsLoading(true);
     try {
+      console.log('Loading invites for church:', church.id);
+      
       const { data, error } = await supabase
         .from('invites')
         .select(`
@@ -42,7 +43,10 @@ export const useInvites = () => {
         .eq('church_id', church.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error loading invites:', error);
+        throw error;
+      }
 
       const formattedInvites: Invite[] = (data || []).map(invite => ({
         id: invite.id,
@@ -60,6 +64,7 @@ export const useInvites = () => {
       }));
 
       setInvites(formattedInvites);
+      console.log('Invites loaded:', formattedInvites.length);
     } catch (error) {
       console.error('Error loading invites:', error);
       toast({
@@ -69,8 +74,9 @@ export const useInvites = () => {
       });
     } finally {
       setIsLoading(false);
+      setHasLoaded(true);
     }
-  };
+  }, [church?.id, toast]);
 
   const sendInvite = async (inviteData: {
     name: string;
@@ -82,8 +88,10 @@ export const useInvites = () => {
     if (!church?.id || !user?.id) return;
 
     try {
+      console.log('Sending invite:', inviteData);
+      
       const expiresAt = new Date();
-      expiresAt.setDate(expiresAt.getDate() + 7); // Expira em 7 dias
+      expiresAt.setDate(expiresAt.getDate() + 7);
 
       const { data, error } = await supabase
         .from('invites')
@@ -100,8 +108,12 @@ export const useInvites = () => {
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error sending invite:', error);
+        throw error;
+      }
 
+      console.log('Invite sent successfully:', data);
       toast({
         title: "Convite enviado!",
         description: `Convite enviado para ${inviteData.email} com sucesso.`,
@@ -124,14 +136,20 @@ export const useInvites = () => {
     if (!church?.id) return;
 
     try {
+      console.log('Canceling invite:', inviteId);
+      
       const { error } = await supabase
         .from('invites')
         .delete()
         .eq('id', inviteId)
         .eq('church_id', church.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error canceling invite:', error);
+        throw error;
+      }
 
+      console.log('Invite canceled successfully');
       toast({
         title: "Convite cancelado",
         description: "O convite foi cancelado com sucesso.",
@@ -152,6 +170,8 @@ export const useInvites = () => {
     if (!church?.id) return;
 
     try {
+      console.log('Resending invite:', inviteId);
+      
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -164,8 +184,12 @@ export const useInvites = () => {
         .eq('id', inviteId)
         .eq('church_id', church.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error resending invite:', error);
+        throw error;
+      }
 
+      console.log('Invite resent successfully');
       toast({
         title: "Convite reenviado",
         description: "O convite foi reenviado com sucesso.",
@@ -183,8 +207,10 @@ export const useInvites = () => {
   };
 
   useEffect(() => {
-    loadInvites();
-  }, [church?.id]);
+    if (church?.id && !hasLoaded && !isLoading) {
+      loadInvites();
+    }
+  }, [church?.id, hasLoaded, isLoading, loadInvites]);
 
   return {
     invites,

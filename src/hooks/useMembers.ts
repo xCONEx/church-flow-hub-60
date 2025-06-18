@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -21,15 +21,16 @@ export const useMembers = () => {
   const { church, user } = useAuth();
   const { toast } = useToast();
   const [members, setMembers] = useState<Member[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
-  const loadMembers = async () => {
-    if (!church?.id) {
-      setIsLoading(false);
-      return;
-    }
+  const loadMembers = useCallback(async () => {
+    if (!church?.id || isLoading) return;
 
+    setIsLoading(true);
     try {
+      console.log('Loading members for church:', church.id);
+      
       // Buscar membros através de user_roles
       const { data: userRoles, error: rolesError } = await supabase
         .from('user_roles')
@@ -47,7 +48,10 @@ export const useMembers = () => {
         `)
         .eq('church_id', church.id);
 
-      if (rolesError) throw rolesError;
+      if (rolesError) {
+        console.error('Error loading user roles:', rolesError);
+        throw rolesError;
+      }
 
       // Buscar departamentos dos usuários
       const { data: userDepartments, error: deptError } = await supabase
@@ -57,7 +61,10 @@ export const useMembers = () => {
           departments (name)
         `);
 
-      if (deptError) throw deptError;
+      if (deptError) {
+        console.error('Error loading user departments:', deptError);
+        throw deptError;
+      }
 
       // Agrupar por usuário
       const memberMap = new Map<string, Member>();
@@ -92,7 +99,9 @@ export const useMembers = () => {
         }
       });
 
-      setMembers(Array.from(memberMap.values()));
+      const membersArray = Array.from(memberMap.values());
+      setMembers(membersArray);
+      console.log('Members loaded:', membersArray.length);
     } catch (error) {
       console.error('Error loading members:', error);
       toast({
@@ -102,13 +111,16 @@ export const useMembers = () => {
       });
     } finally {
       setIsLoading(false);
+      setHasLoaded(true);
     }
-  };
+  }, [church?.id, toast]);
 
   const addMember = async (memberData: Omit<Member, 'id' | 'churchId' | 'createdAt'>) => {
     if (!church?.id || !user?.id) return;
 
     try {
+      console.log('Adding member:', memberData);
+      
       // Verificar se o usuário já existe
       let { data: existingProfile } = await supabase
         .from('profiles')
@@ -119,11 +131,11 @@ export const useMembers = () => {
       let profileId = existingProfile?.id;
 
       if (!profileId) {
-        // Criar novo perfil com UUID gerado pelo Supabase
+        // Criar novo perfil
         const { data: newProfile, error: profileError } = await supabase
           .from('profiles')
           .insert({
-            id: crypto.randomUUID(), // Gerar UUID temporário
+            id: crypto.randomUUID(),
             name: memberData.name,
             email: memberData.email,
             phone: memberData.phone,
@@ -133,7 +145,10 @@ export const useMembers = () => {
           .select('id')
           .single();
 
-        if (profileError) throw profileError;
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          throw profileError;
+        }
         profileId = newProfile.id;
       }
 
@@ -146,7 +161,10 @@ export const useMembers = () => {
           role: memberData.role
         });
 
-      if (roleError) throw roleError;
+      if (roleError) {
+        console.error('Error creating user role:', roleError);
+        throw roleError;
+      }
 
       // Adicionar aos departamentos
       if (memberData.departments.length > 0) {
@@ -167,6 +185,7 @@ export const useMembers = () => {
         }
       }
 
+      console.log('Member added successfully');
       toast({
         title: "Sucesso",
         description: "Membro adicionado com sucesso!",
@@ -184,8 +203,10 @@ export const useMembers = () => {
   };
 
   useEffect(() => {
-    loadMembers();
-  }, [church?.id]);
+    if (church?.id && !hasLoaded && !isLoading) {
+      loadMembers();
+    }
+  }, [church?.id, hasLoaded, isLoading, loadMembers]);
 
   return {
     members,

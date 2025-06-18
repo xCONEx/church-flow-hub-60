@@ -26,37 +26,46 @@ export const useInvites = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const loadInvites = useCallback(async () => {
-    if (!church?.id || isLoading) return;
+    if (!church?.id) return;
 
     setIsLoading(true);
     try {
       console.log('Loading invites for church:', church.id);
       
-      const { data, error } = await supabase
+      // Buscar convites primeiro
+      const { data: invitesData, error: invitesError } = await supabase
         .from('invites')
-        .select(`
-          *,
-          departments (name),
-          profiles!invited_by (name)
-        `)
+        .select('*')
         .eq('church_id', church.id)
         .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Error loading invites:', error);
-        throw error;
+      if (invitesError) {
+        console.error('Error loading invites:', invitesError);
+        throw invitesError;
       }
 
-      const formattedInvites: Invite[] = (data || []).map(invite => ({
+      // Buscar departamentos separadamente
+      const { data: departmentsData } = await supabase
+        .from('departments')
+        .select('id, name')
+        .eq('church_id', church.id);
+
+      // Criar mapa de departamentos
+      const departmentMap = new Map();
+      departmentsData?.forEach(dept => {
+        departmentMap.set(dept.id, dept.name);
+      });
+
+      const formattedInvites: Invite[] = (invitesData || []).map(invite => ({
         id: invite.id,
         name: invite.name,
         email: invite.email,
         role: invite.role,
         departmentId: invite.department_id,
-        departmentName: invite.departments?.name,
+        departmentName: invite.department_id ? departmentMap.get(invite.department_id) : undefined,
         status: invite.status,
         invitedBy: invite.invited_by,
-        invitedByName: invite.profiles?.name,
+        invitedByName: 'Admin', // Simplificado por enquanto
         churchId: invite.church_id,
         createdAt: new Date(invite.created_at),
         expiresAt: invite.expires_at ? new Date(invite.expires_at) : undefined
@@ -208,7 +217,7 @@ export const useInvites = () => {
     if (church?.id) {
       loadInvites();
     }
-  }, [church?.id]);
+  }, [loadInvites]);
 
   return {
     invites,

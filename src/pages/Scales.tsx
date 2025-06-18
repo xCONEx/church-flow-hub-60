@@ -10,23 +10,35 @@ import { Calendar, Search, Plus, Users, Music, BookOpen } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { CreateScaleDialog } from '@/components/CreateScaleDialog';
+import { useScales } from '@/hooks/useScales';
 
 export const Scales = () => {
   const { user } = useAuth();
   const { addNotification } = useNotifications();
+  const { scales, isLoading } = useScales();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [departmentFilter, setDepartmentFilter] = useState('all');
-  const [scales, setScales] = useState<any[]>([]);
 
   const canCreateScales = user?.role === 'admin' || user?.role === 'leader';
 
   const stats = {
-    total: 0,
-    published: 0,
-    completed: 0,
-    needAttention: 0,
+    total: scales.length,
+    published: scales.filter(s => s.status === 'published').length,
+    completed: scales.filter(s => s.status === 'completed').length,
+    needAttention: scales.filter(s => s.status === 'draft').length,
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Escalas">
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Carregando escalas...</p>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Escalas">

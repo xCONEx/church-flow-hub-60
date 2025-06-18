@@ -1,9 +1,10 @@
-
 import { useState, useEffect, useCallback } from 'react';
 import { Department } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+
+type DepartmentType = "louvor" | "louvor-juniores" | "louvor-teens" | "midia" | "midia-juniores" | "sonoplastia" | "instrumentos" | "recepcao" | "ministracao" | "palavra" | "oracao" | "custom";
 
 export const useChurchSettings = () => {
   const { church } = useAuth();
@@ -80,6 +81,103 @@ export const useChurchSettings = () => {
       });
     }
   }, [church?.id, toast]);
+
+  const createDepartment = async (departmentData: {
+    name: string;
+    type: string;
+    parentDepartmentId?: string;
+  }) => {
+    if (!church?.id) return;
+
+    try {
+      console.log('Creating department:', departmentData);
+      
+      // Converter o tipo para um dos tipos aceitos pelo Supabase
+      const validType: DepartmentType = departmentData.type as DepartmentType || 'custom';
+      
+      const { data, error } = await supabase
+        .from('departments')
+        .insert({
+          name: departmentData.name,
+          type: validType,
+          church_id: church.id,
+          parent_department_id: departmentData.parentDepartmentId || null,
+          is_sub_department: !!departmentData.parentDepartmentId
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error creating department:', error);
+        throw error;
+      }
+
+      console.log('Department created successfully:', data);
+      toast({
+        title: "Sucesso",
+        description: "Departamento criado com sucesso!",
+      });
+
+      // Recarregar departamentos
+      await loadDepartments();
+      return data;
+    } catch (error) {
+      console.error('Error creating department:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao criar departamento",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
+
+  const updateDepartment = async (departmentId: string, departmentData: {
+    name?: string;
+    type?: string;
+  }) => {
+    if (!church?.id) return;
+
+    try {
+      console.log('Updating department:', departmentId, departmentData);
+      
+      // Preparar dados de atualização com tipos corretos
+      const updateData: any = {};
+      if (departmentData.name) {
+        updateData.name = departmentData.name;
+      }
+      if (departmentData.type) {
+        updateData.type = departmentData.type as DepartmentType;
+      }
+      
+      const { error } = await supabase
+        .from('departments')
+        .update(updateData)
+        .eq('id', departmentId)
+        .eq('church_id', church.id);
+
+      if (error) {
+        console.error('Error updating department:', error);
+        throw error;
+      }
+
+      console.log('Department updated successfully');
+      toast({
+        title: "Sucesso",
+        description: "Departamento atualizado com sucesso!",
+      });
+
+      await loadDepartments();
+    } catch (error) {
+      console.error('Error updating department:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao atualizar departamento",
+        variant: "destructive",
+      });
+      throw error;
+    }
+  };
 
   const loadServiceTypes = useCallback(async () => {
     if (!church?.id) return;
@@ -230,6 +328,8 @@ export const useChurchSettings = () => {
     isLoading,
     loadDepartments,
     loadServiceTypes,
+    createDepartment,
+    updateDepartment,
     handleDeleteDepartment,
     handleDeleteServiceType,
   };

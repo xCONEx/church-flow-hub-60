@@ -12,7 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface AddSongDialogProps {
   trigger: React.ReactNode;
-  onSongAdded: (song: any) => void;
+  onSongAdded: (songData: any) => Promise<void>;
 }
 
 const categories = ['Adoração', 'Celebração', 'Ministração', 'Comunhão'];
@@ -21,6 +21,7 @@ const musicalKeys = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#',
 export const AddSongDialog = ({ trigger, onSongAdded }: AddSongDialogProps) => {
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     artist: '',
@@ -33,7 +34,7 @@ export const AddSongDialog = ({ trigger, onSongAdded }: AddSongDialogProps) => {
   const [tags, setTags] = useState<string[]>([]);
   const [newTag, setNewTag] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.title || !formData.artist || !formData.category) {
@@ -45,34 +46,36 @@ export const AddSongDialog = ({ trigger, onSongAdded }: AddSongDialogProps) => {
       return;
     }
 
-    const newSong = {
-      id: Date.now().toString(),
-      ...formData,
-      tags,
-      hasLyrics: !!formData.lyrics,
-      addedBy: 'Usuário Atual', // Seria substituído pelo usuário logado
-      createdAt: new Date()
-    };
+    setIsLoading(true);
+    try {
+      await onSongAdded({
+        title: formData.title,
+        artist: formData.artist,
+        originalKey: formData.originalKey,
+        category: formData.category,
+        youtubeUrl: formData.youtubeUrl,
+        cifraUrl: formData.cifraUrl,
+        lyrics: formData.lyrics,
+        tags
+      });
 
-    onSongAdded(newSong);
-    
-    toast({
-      title: "Sucesso",
-      description: "Música adicionada com sucesso!"
-    });
-
-    // Reset form
-    setFormData({
-      title: '',
-      artist: '',
-      originalKey: '',
-      category: '',
-      youtubeUrl: '',
-      cifraUrl: '',
-      lyrics: ''
-    });
-    setTags([]);
-    setOpen(false);
+      // Reset form
+      setFormData({
+        title: '',
+        artist: '',
+        originalKey: '',
+        category: '',
+        youtubeUrl: '',
+        cifraUrl: '',
+        lyrics: ''
+      });
+      setTags([]);
+      setOpen(false);
+    } catch (error) {
+      console.error('Error adding song:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const addTag = () => {
@@ -205,11 +208,11 @@ export const AddSongDialog = ({ trigger, onSongAdded }: AddSongDialogProps) => {
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+            <Button type="button" variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
               Cancelar
             </Button>
-            <Button type="submit" className="bg-gradient-to-r from-blue-500 to-purple-500">
-              Adicionar Música
+            <Button type="submit" className="bg-gradient-to-r from-blue-500 to-purple-500" disabled={isLoading}>
+              {isLoading ? 'Adicionando...' : 'Adicionar Música'}
             </Button>
           </DialogFooter>
         </form>

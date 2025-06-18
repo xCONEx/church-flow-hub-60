@@ -5,13 +5,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Camera, User, Settings, Shield } from 'lucide-react';
+import { User, Settings, Shield } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
+import { ProfileAvatarUpload } from '@/components/ProfileAvatarUpload';
 
 export const Profile = () => {
   const { user, updateUser } = useAuth();
@@ -71,23 +71,24 @@ export const Profile = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center space-x-4">
-                  <Avatar className="h-20 w-20">
-                    <AvatarImage src={formData.avatar} />
-                    <AvatarFallback className="text-lg">
-                      {user.name.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div>
-                    <Button variant="outline" className="mb-2">
-                      <Camera className="h-4 w-4 mr-2" />
-                      Alterar Foto
-                    </Button>
-                    <p className="text-sm text-gray-500">
-                      JPG, GIF ou PNG. Máximo de 1MB.
-                    </p>
+                {/* Foto de perfil - apenas durante edição */}
+                {isEditing && (
+                  <div className="flex justify-center">
+                    <ProfileAvatarUpload />
                   </div>
-                </div>
+                )}
+
+                {/* Avatar apenas para visualização quando não está editando */}
+                {!isEditing && (
+                  <div className="flex justify-center">
+                    <Avatar className="h-24 w-24">
+                      <AvatarImage src={user.avatar || undefined} alt={user.name} />
+                      <AvatarFallback className="text-lg">
+                        {user.name.charAt(0).toUpperCase()}
+                      </AvatarFallback>
+                    </Avatar>
+                  </div>
+                )}
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>

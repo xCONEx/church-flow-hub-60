@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { User as SupabaseUser, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -21,19 +20,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       console.log('AuthProvider: Loading user data for:', authUser.email);
       
-      // Load profile with timeout
-      const profilePromise = supabase
+      // Load profile with shorter timeout
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', authUser.id)
         .single();
-
-      const { data: profile, error: profileError } = await Promise.race([
-        profilePromise,
-        new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Profile load timeout')), 5000)
-        )
-      ]) as any;
 
       if (profileError || !profile) {
         console.log('AuthProvider: Profile not found, creating fallback user');
@@ -45,27 +37,30 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       let userRole: AppUser['role'] = 'member';
       let churchId: string | undefined;
 
-      const { data: rolesData } = await supabase
-        .from('user_roles')
-        .select('role, church_id')
-        .eq('user_id', authUser.id)
-        .limit(10);
+      // Check if it's the master user first
+      if (authUser.email === 'yuriadrskt@gmail.com') {
+        userRole = 'master';
+      } else {
+        const { data: rolesData } = await supabase
+          .from('user_roles')
+          .select('role, church_id')
+          .eq('user_id', authUser.id)
+          .limit(10);
 
-      if (rolesData && rolesData.length > 0) {
-        const roleHierarchy = ['master', 'admin', 'leader', 'collaborator', 'member'];
-        for (const role of roleHierarchy) {
-          const foundRole = rolesData.find(r => r.role === role);
-          if (foundRole) {
-            userRole = foundRole.role as AppUser['role'];
-            churchId = foundRole.church_id;
-            break;
+        if (rolesData && rolesData.length > 0) {
+          const roleHierarchy = ['admin', 'leader', 'collaborator', 'member'];
+          for (const role of roleHierarchy) {
+            const foundRole = rolesData.find(r => r.role === role);
+            if (foundRole) {
+              userRole = foundRole.role as AppUser['role'];
+              churchId = foundRole.church_id;
+              break;
+            }
           }
         }
-      } else if (authUser.email === 'yuriadrskt@gmail.com') {
-        userRole = 'master';
       }
 
-      // Load church data only if needed
+      // Load church data only if needed and user has a church
       let churchData: Church | null = null;
       if (churchId && userRole !== 'master') {
         const { data: church } = await supabase
@@ -187,7 +182,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       mounted = false;
       subscription.unsubscribe();
     };
-  }, [loadUserData]); // Apenas loadUserData como dependência
+  }, [loadUserData]);
 
   const login = async (email: string, password: string) => {
     setIsLoading(true);

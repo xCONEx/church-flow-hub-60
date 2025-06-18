@@ -62,21 +62,36 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
 
     try {
-      // Load churches
-      const { data: churchesData } = await supabase
+      console.log('MasterContext: Loading data for master user');
+      
+      // Load churches with admin names using a simpler approach
+      const { data: churchesData, error: churchesError } = await supabase
         .from('churches')
-        .select(`
-          *,
-          profiles!churches_admin_id_fkey(name)
-        `)
+        .select('*')
         .order('created_at', { ascending: false });
 
-      const churchesWithAdminNames = churchesData?.map(church => ({
-        ...church,
-        admin_name: church.profiles?.name || 'Sem nome'
-      })) || [];
+      if (churchesError) {
+        console.error('Error loading churches:', churchesError);
+        setChurches([]);
+      } else {
+        // Get admin names separately
+        const churchesWithAdminNames = await Promise.all(
+          (churchesData || []).map(async (church) => {
+            const { data: adminData } = await supabase
+              .from('profiles')
+              .select('name')
+              .eq('id', church.admin_id)
+              .single();
 
-      setChurches(churchesWithAdminNames);
+            return {
+              ...church,
+              admin_name: adminData?.name || 'Sem nome'
+            };
+          })
+        );
+
+        setChurches(churchesWithAdminNames);
+      }
 
       // Load users count
       const { count: usersCount } = await supabase
@@ -99,21 +114,15 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         newUsersThisWeek: 0,
       });
 
-      // Mock activities for now
-      setActivities([
-        {
-          id: '1',
-          description: 'Nova igreja cadastrada',
-          details: 'Igreja Batista Central foi adicionada ao sistema',
-          timestamp: new Date(),
-        },
-        {
-          id: '2',
-          description: 'Usuário registrado',
-          details: 'Novo administrador se registrou no sistema',
-          timestamp: new Date(Date.now() - 2 * 60 * 60 * 1000),
-        },
-      ]);
+      // Load recent activities from actual data
+      const recentActivities = (churchesData || []).slice(0, 5).map((church, index) => ({
+        id: `activity-${church.id}`,
+        description: 'Nova igreja cadastrada',
+        details: `${church.name} foi adicionada ao sistema`,
+        timestamp: new Date(church.created_at),
+      }));
+
+      setActivities(recentActivities);
 
     } catch (error) {
       console.error('Error loading master data:', error);
@@ -123,8 +132,7 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   const createChurch = async (churchData: any) => {
-    // This function will handle church creation
-    await loadData(); // Refresh data after creation
+    await loadData();
   };
 
   const updateChurch = async (churchId: string, churchData: any) => {
@@ -141,7 +149,6 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (error) throw error;
 
-      // Refresh data
       await loadData();
     } catch (error) {
       console.error('Error updating church:', error);
@@ -163,7 +170,6 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       if (error) throw error;
 
-      // Refresh data
       await loadData();
     } catch (error) {
       console.error('Error deleting church:', error);
@@ -177,7 +183,11 @@ export const MasterProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   };
 
   useEffect(() => {
-    loadData();
+    if (user?.role === 'master') {
+      loadData();
+    } else {
+      setIsLoading(false);
+    }
   }, [user]);
 
   const value: MasterContextType = {

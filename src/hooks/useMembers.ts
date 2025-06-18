@@ -22,7 +22,6 @@ export const useMembers = () => {
   const { toast } = useToast();
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadMembers = useCallback(async () => {
     if (!church?.id || isLoading) return;
@@ -101,7 +100,7 @@ export const useMembers = () => {
 
       const membersArray = Array.from(memberMap.values());
       setMembers(membersArray);
-      console.log('Members loaded:', membersArray.length);
+      console.log('Members loaded successfully:', membersArray.length);
     } catch (error) {
       console.error('Error loading members:', error);
       toast({
@@ -111,7 +110,6 @@ export const useMembers = () => {
       });
     } finally {
       setIsLoading(false);
-      setHasLoaded(true);
     }
   }, [church?.id, toast]);
 
@@ -191,7 +189,7 @@ export const useMembers = () => {
         description: "Membro adicionado com sucesso!",
       });
 
-      await loadMembers();
+      loadMembers();
     } catch (error) {
       console.error('Error adding member:', error);
       toast({
@@ -203,10 +201,10 @@ export const useMembers = () => {
   };
 
   useEffect(() => {
-    if (church?.id && !hasLoaded && !isLoading) {
+    if (church?.id) {
       loadMembers();
     }
-  }, [church?.id, hasLoaded, isLoading, loadMembers]);
+  }, [church?.id]);
 
   return {
     members,

@@ -24,7 +24,6 @@ export const useRepertoire = () => {
   const { toast } = useToast();
   const [songs, setSongs] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadSongs = useCallback(async () => {
     if (!church?.id || isLoading) return;
@@ -60,7 +59,7 @@ export const useRepertoire = () => {
       }));
 
       setSongs(formattedSongs);
-      console.log('Songs loaded:', formattedSongs.length);
+      console.log('Songs loaded successfully:', formattedSongs.length);
     } catch (error) {
       console.error('Error loading songs:', error);
       toast({
@@ -70,7 +69,6 @@ export const useRepertoire = () => {
       });
     } finally {
       setIsLoading(false);
-      setHasLoaded(true);
     }
   }, [church?.id, toast]);
 
@@ -108,8 +106,7 @@ export const useRepertoire = () => {
         description: "Música adicionada ao repertório!",
       });
 
-      // Reload songs after adding
-      await loadSongs();
+      loadSongs();
     } catch (error) {
       console.error('Error adding song:', error);
       toast({
@@ -152,7 +149,7 @@ export const useRepertoire = () => {
         description: "Música atualizada com sucesso!",
       });
 
-      await loadSongs();
+      loadSongs();
     } catch (error) {
       console.error('Error updating song:', error);
       toast({
@@ -186,7 +183,7 @@ export const useRepertoire = () => {
         description: "Música removida do repertório!",
       });
 
-      await loadSongs();
+      loadSongs();
     } catch (error) {
       console.error('Error deleting song:', error);
       toast({
@@ -197,12 +194,11 @@ export const useRepertoire = () => {
     }
   };
 
-  // Load songs only once when church is available
   useEffect(() => {
-    if (church?.id && !hasLoaded && !isLoading) {
+    if (church?.id) {
       loadSongs();
     }
-  }, [church?.id, hasLoaded, isLoading, loadSongs]);
+  }, [church?.id]);
 
   return {
     songs,

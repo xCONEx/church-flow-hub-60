@@ -42,7 +42,8 @@ const roleLabels = {
   admin: 'Administrador',
   leader: 'Líder',
   collaborator: 'Colaborador',
-  member: 'Membro'
+  member: 'Membro',
+  master: 'Master'
 };
 
 export const Invites = () => {
@@ -60,7 +61,7 @@ export const Invites = () => {
     return matchesSearch && matchesStatus;
   });
 
-  const canInvite = user?.role === 'admin' || user?.role === 'leader';
+  const canInvite = user?.role === 'admin' || user?.role === 'leader' || user?.role === 'master';
 
   const stats = {
     total: invites.length,
@@ -70,13 +71,20 @@ export const Invites = () => {
   };
 
   const handleInviteSent = async (inviteData: any) => {
-    await sendInvite(inviteData);
+    try {
+      await sendInvite(inviteData);
+    } catch (error) {
+      console.error('Error sending invite:', error);
+    }
   };
 
   if (isLoading) {
     return (
       <DashboardLayout title="Convites">
-        <div className="text-center py-12">Carregando convites...</div>
+        <div className="text-center py-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Carregando convites...</p>
+        </div>
       </DashboardLayout>
     );
   }
@@ -101,6 +109,34 @@ export const Invites = () => {
               onInviteSent={handleInviteSent}
             />
           )}
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
+              <p className="text-sm text-gray-600">Total de Convites</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
+              <p className="text-sm text-gray-600">Pendentes</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-green-600">{stats.accepted}</div>
+              <p className="text-sm text-gray-600">Aceitos</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="p-4">
+              <div className="text-2xl font-bold text-gray-600">{stats.expired}</div>
+              <p className="text-sm text-gray-600">Expirados</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Filters */}
@@ -131,34 +167,6 @@ export const Invites = () => {
             </div>
           </CardContent>
         </Card>
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-blue-600">{stats.total}</div>
-              <p className="text-sm text-gray-600">Total de Convites</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-              <p className="text-sm text-gray-600">Pendentes</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-green-600">{stats.accepted}</div>
-              <p className="text-sm text-gray-600">Aceitos</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-2xl font-bold text-gray-600">{stats.expired}</div>
-              <p className="text-sm text-gray-600">Expirados</p>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Invites List */}
         <div className="space-y-4">

@@ -24,7 +24,6 @@ export const useInvites = () => {
   const { toast } = useToast();
   const [invites, setInvites] = useState<Invite[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadInvites = useCallback(async () => {
     if (!church?.id || isLoading) return;
@@ -64,7 +63,7 @@ export const useInvites = () => {
       }));
 
       setInvites(formattedInvites);
-      console.log('Invites loaded:', formattedInvites.length);
+      console.log('Invites loaded successfully:', formattedInvites.length);
     } catch (error) {
       console.error('Error loading invites:', error);
       toast({
@@ -74,7 +73,6 @@ export const useInvites = () => {
       });
     } finally {
       setIsLoading(false);
-      setHasLoaded(true);
     }
   }, [church?.id, toast]);
 
@@ -119,7 +117,7 @@ export const useInvites = () => {
         description: `Convite enviado para ${inviteData.email} com sucesso.`,
       });
 
-      await loadInvites();
+      loadInvites();
       return data;
     } catch (error) {
       console.error('Error sending invite:', error);
@@ -155,7 +153,7 @@ export const useInvites = () => {
         description: "O convite foi cancelado com sucesso.",
       });
 
-      await loadInvites();
+      loadInvites();
     } catch (error) {
       console.error('Error canceling invite:', error);
       toast({
@@ -195,7 +193,7 @@ export const useInvites = () => {
         description: "O convite foi reenviado com sucesso.",
       });
 
-      await loadInvites();
+      loadInvites();
     } catch (error) {
       console.error('Error resending invite:', error);
       toast({
@@ -207,10 +205,10 @@ export const useInvites = () => {
   };
 
   useEffect(() => {
-    if (church?.id && !hasLoaded && !isLoading) {
+    if (church?.id) {
       loadInvites();
     }
-  }, [church?.id, hasLoaded, isLoading, loadInvites]);
+  }, [church?.id]);
 
   return {
     invites,

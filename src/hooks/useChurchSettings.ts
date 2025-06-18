@@ -12,10 +12,9 @@ export const useChurchSettings = () => {
   const [serviceTypes, setServiceTypes] = useState<string[]>([]);
   const [departmentCounts, setDepartmentCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(false);
-  const [hasLoaded, setHasLoaded] = useState(false);
 
   const loadDepartments = useCallback(async () => {
-    if (!church?.id || isLoading) return;
+    if (!church?.id) return;
 
     try {
       console.log('Loading departments for church:', church.id);
@@ -49,7 +48,7 @@ export const useChurchSettings = () => {
         }
       }
 
-      console.log('Departments loaded:', deptArray.length);
+      console.log('Departments loaded successfully:', deptArray.length);
       setDepartments(deptArray);
 
       // Carregar contadores de colaboradores usando user_departments
@@ -80,7 +79,7 @@ export const useChurchSettings = () => {
         variant: "destructive",
       });
     }
-  }, [church?.id, toast, isLoading]);
+  }, [church?.id, toast]);
 
   const loadServiceTypes = useCallback(async () => {
     if (!church?.id) return;
@@ -122,16 +121,15 @@ export const useChurchSettings = () => {
   }, [church?.id]);
 
   const loadData = useCallback(async () => {
-    if (!church?.id || isLoading) return;
+    if (!church?.id) return;
 
     setIsLoading(true);
     try {
       await Promise.all([loadDepartments(), loadServiceTypes()]);
     } finally {
       setIsLoading(false);
-      setHasLoaded(true);
     }
-  }, [church?.id, loadDepartments, loadServiceTypes, isLoading]);
+  }, [church?.id, loadDepartments, loadServiceTypes]);
 
   const handleDeleteDepartment = async (id: string) => {
     try {
@@ -200,10 +198,30 @@ export const useChurchSettings = () => {
   };
 
   useEffect(() => {
-    if (church?.id && !hasLoaded && !isLoading) {
+    if (church?.id) {
       loadData();
     }
-  }, [church?.id, hasLoaded, isLoading, loadData]);
+  }, [church?.id]);
+
+  // Recarregar dados quando houver mudanças no banco
+  useEffect(() => {
+    if (!church?.id) return;
+
+    const subscription = supabase
+      .channel('departments_changes')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'departments', filter: `church_id=eq.${church.id}` },
+        () => {
+          console.log('Department change detected, reloading...');
+          loadDepartments();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, [church?.id, loadDepartments]);
 
   return {
     departments,

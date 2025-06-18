@@ -7,18 +7,12 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { Department } from '@/types';
+import { useChurchSettings } from '@/hooks/useChurchSettings';
 
 interface AddDepartmentDialogProps {
   trigger: React.ReactNode;
-  onAdd: (department: { 
-    name: string; 
-    type: string; 
-    leaderId?: string; 
-    collaborators: string[]; 
-    parentDepartmentId?: string;
-    isSubDepartment?: boolean;
-  }) => void;
   departments: Department[];
+  onAdd: () => void;
 }
 
 const departmentTypes = [
@@ -33,8 +27,10 @@ const departmentTypes = [
   { value: 'custom', label: 'Personalizado' },
 ];
 
-export const AddDepartmentDialog = ({ trigger, onAdd, departments }: AddDepartmentDialogProps) => {
+export const AddDepartmentDialog = ({ trigger, departments, onAdd }: AddDepartmentDialogProps) => {
+  const { createDepartment } = useChurchSettings();
   const [open, setOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     type: '',
@@ -44,22 +40,28 @@ export const AddDepartmentDialog = ({ trigger, onAdd, departments }: AddDepartme
 
   const parentDepartments = departments.filter(dept => !dept.isSubDepartment);
 
-  const handleSubmit = () => {
-    if (formData.name && formData.type) {
-      if (formData.isSubDepartment && !formData.parentDepartmentId) {
-        return; // Não permitir sub-departamento sem pai
-      }
+  const handleSubmit = async () => {
+    if (!formData.name || !formData.type) return;
+    
+    if (formData.isSubDepartment && !formData.parentDepartmentId) {
+      return; // Não permitir sub-departamento sem pai
+    }
 
-      onAdd({
+    setIsLoading(true);
+    try {
+      await createDepartment({
         name: formData.name,
         type: formData.type,
-        collaborators: [],
         parentDepartmentId: formData.isSubDepartment ? formData.parentDepartmentId : undefined,
-        isSubDepartment: formData.isSubDepartment,
       });
       
       setFormData({ name: '', type: '', isSubDepartment: false, parentDepartmentId: '' });
       setOpen(false);
+      onAdd();
+    } catch (error) {
+      console.error('Error creating department:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -141,15 +143,15 @@ export const AddDepartmentDialog = ({ trigger, onAdd, departments }: AddDepartme
         </div>
         
         <DialogFooter className="flex flex-col-reverse sm:flex-row gap-2">
-          <Button variant="outline" onClick={handleCancel} className="w-full sm:w-auto">
+          <Button variant="outline" onClick={handleCancel} className="w-full sm:w-auto" disabled={isLoading}>
             Cancelar
           </Button>
           <Button 
             onClick={handleSubmit} 
-            disabled={!formData.name || !formData.type || (formData.isSubDepartment && !formData.parentDepartmentId)}
+            disabled={!formData.name || !formData.type || (formData.isSubDepartment && !formData.parentDepartmentId) || isLoading}
             className="w-full sm:w-auto"
           >
-            Criar Departamento
+            {isLoading ? 'Criando...' : 'Criar Departamento'}
           </Button>
         </DialogFooter>
       </DialogContent>

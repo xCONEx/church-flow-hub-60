@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -40,11 +40,20 @@ export const useScales = () => {
   const [availableMembers, setAvailableMembers] = useState<ScaleMember[]>([]);
   const [availableSongs, setAvailableSongs] = useState<ScaleSong[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Refs para controlar carregamentos e evitar duplicações
+  const isLoadingMembersRef = useRef(false);
+  const isLoadingSongsRef = useRef(false);
+  const isLoadingScalesRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const loadAvailableMembers = useCallback(async () => {
-    if (!church?.id) return;
+    if (!church?.id || isLoadingMembersRef.current || !mountedRef.current) return;
 
+    isLoadingMembersRef.current = true;
     try {
+      console.log('Loading available members for church:', church.id);
+      
       // Buscar membros através de user_roles
       const { data: userRoles, error } = await supabase
         .from('user_roles')
@@ -68,6 +77,8 @@ export const useScales = () => {
           user_id,
           departments (name)
         `);
+
+      if (!mountedRef.current) return;
 
       // Agrupar por usuário
       const memberMap = new Map<string, ScaleMember>();
@@ -98,17 +109,27 @@ export const useScales = () => {
       });
 
       const membersArray = Array.from(memberMap.values());
-      setAvailableMembers(membersArray);
-      console.log('Available members loaded:', membersArray.length);
+      if (mountedRef.current) {
+        setAvailableMembers(membersArray);
+        console.log('Available members loaded:', membersArray.length);
+      }
     } catch (error) {
       console.error('Error loading available members:', error);
+      if (mountedRef.current) {
+        setAvailableMembers([]);
+      }
+    } finally {
+      isLoadingMembersRef.current = false;
     }
   }, [church?.id]);
 
   const loadAvailableSongs = useCallback(async () => {
-    if (!church?.id) return;
+    if (!church?.id || isLoadingSongsRef.current || !mountedRef.current) return;
 
+    isLoadingSongsRef.current = true;
     try {
+      console.log('Loading available songs for church:', church.id);
+      
       const { data, error } = await supabase
         .from('songs')
         .select('*')
@@ -116,6 +137,8 @@ export const useScales = () => {
         .order('title', { ascending: true });
 
       if (error) throw error;
+
+      if (!mountedRef.current) return;
 
       const songsArray: ScaleSong[] = (data || []).map(song => ({
         id: song.id,
@@ -129,28 +152,44 @@ export const useScales = () => {
       console.log('Available songs loaded:', songsArray.length);
     } catch (error) {
       console.error('Error loading available songs:', error);
+      if (mountedRef.current) {
+        setAvailableSongs([]);
+      }
+    } finally {
+      isLoadingSongsRef.current = false;
     }
   }, [church?.id]);
 
   const loadScales = useCallback(async () => {
-    if (!church?.id) return;
+    if (!church?.id || isLoadingScalesRef.current || !mountedRef.current) return;
 
+    isLoadingScalesRef.current = true;
     setIsLoading(true);
     try {
+      console.log('Loading scales for church:', church.id);
+      
       // Por enquanto, usar dados mock mas com estrutura real para escalas
       // Em uma implementação futura, isso viria do banco de dados
       const mockScales: Scale[] = [];
-      setScales(mockScales);
-      console.log('Scales loaded successfully:', mockScales.length);
+      
+      if (mountedRef.current) {
+        setScales(mockScales);
+        console.log('Scales loaded successfully:', mockScales.length);
+      }
     } catch (error) {
       console.error('Error loading scales:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar escalas",
-        variant: "destructive",
-      });
+      if (mountedRef.current) {
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar escalas",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
+      isLoadingScalesRef.current = false;
     }
   }, [church?.id, toast]);
 
@@ -161,7 +200,7 @@ export const useScales = () => {
     memberIds: string[];
     songIds: string[];
   }) => {
-    if (!church?.id || !user?.id) return;
+    if (!church?.id || !user?.id || !mountedRef.current) return;
 
     try {
       console.log('Creating scale:', scaleData);
@@ -169,29 +208,41 @@ export const useScales = () => {
       // Aqui seria a implementação real de criação de escala
       // Por enquanto, apenas simular sucesso
       
-      toast({
-        title: "Sucesso",
-        description: "Escala criada com sucesso!",
-      });
-
-      loadScales();
+      if (mountedRef.current) {
+        toast({
+          title: "Sucesso",
+          description: "Escala criada com sucesso!",
+        });
+        loadScales();
+      }
     } catch (error) {
       console.error('Error creating scale:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao criar escala",
-        variant: "destructive",
-      });
+      if (mountedRef.current) {
+        toast({
+          title: "Erro",
+          description: "Erro ao criar escala",
+          variant: "destructive",
+        });
+      }
     }
   };
 
+  // Effect para carregar dados quando a igreja muda
   useEffect(() => {
-    if (church?.id) {
+    if (church?.id && mountedRef.current) {
       loadScales();
       loadAvailableMembers();
       loadAvailableSongs();
     }
   }, [church?.id, loadScales, loadAvailableMembers, loadAvailableSongs]);
+
+  // Cleanup effect
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   return {
     scales,

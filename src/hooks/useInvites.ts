@@ -1,5 +1,5 @@
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -24,10 +24,15 @@ export const useInvites = () => {
   const { toast } = useToast();
   const [invites, setInvites] = useState<Invite[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Ref para controlar carregamentos e evitar duplicações
+  const isLoadingRef = useRef(false);
+  const mountedRef = useRef(true);
 
   const loadInvites = useCallback(async () => {
-    if (!church?.id) return;
+    if (!church?.id || isLoadingRef.current || !mountedRef.current) return;
 
+    isLoadingRef.current = true;
     setIsLoading(true);
     try {
       console.log('Loading invites for church:', church.id);
@@ -44,11 +49,15 @@ export const useInvites = () => {
         throw invitesError;
       }
 
+      if (!mountedRef.current) return;
+
       // Buscar departamentos separadamente
       const { data: departmentsData } = await supabase
         .from('departments')
         .select('id, name')
         .eq('church_id', church.id);
+
+      if (!mountedRef.current) return;
 
       // Criar mapa de departamentos
       const departmentMap = new Map();
@@ -71,17 +80,24 @@ export const useInvites = () => {
         expiresAt: invite.expires_at ? new Date(invite.expires_at) : undefined
       }));
 
-      setInvites(formattedInvites);
-      console.log('Invites loaded successfully:', formattedInvites.length);
+      if (mountedRef.current) {
+        setInvites(formattedInvites);
+        console.log('Invites loaded successfully:', formattedInvites.length);
+      }
     } catch (error) {
       console.error('Error loading invites:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar convites",
-        variant: "destructive",
-      });
+      if (mountedRef.current) {
+        toast({
+          title: "Erro",
+          description: "Erro ao carregar convites",
+          variant: "destructive",
+        });
+      }
     } finally {
-      setIsLoading(false);
+      if (mountedRef.current) {
+        setIsLoading(false);
+      }
+      isLoadingRef.current = false;
     }
   }, [church?.id, toast]);
 
@@ -92,7 +108,7 @@ export const useInvites = () => {
     departmentId?: string;
     message?: string;
   }) => {
-    if (!church?.id || !user?.id) return;
+    if (!church?.id || !user?.id || !mountedRef.current) return;
 
     try {
       console.log('Sending invite:', inviteData);
@@ -121,26 +137,31 @@ export const useInvites = () => {
       }
 
       console.log('Invite sent successfully:', data);
-      toast({
-        title: "Convite enviado!",
-        description: `Convite enviado para ${inviteData.email} com sucesso.`,
-      });
-
-      loadInvites();
+      
+      if (mountedRef.current) {
+        toast({
+          title: "Convite enviado!",
+          description: `Convite enviado para ${inviteData.email} com sucesso.`,
+        });
+        loadInvites();
+      }
+      
       return data;
     } catch (error) {
       console.error('Error sending invite:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao enviar convite. Tente novamente.",
-        variant: "destructive",
-      });
+      if (mountedRef.current) {
+        toast({
+          title: "Erro",
+          description: "Erro ao enviar convite. Tente novamente.",
+          variant: "destructive",
+        });
+      }
       throw error;
     }
   };
 
   const cancelInvite = async (inviteId: string) => {
-    if (!church?.id) return;
+    if (!church?.id || !mountedRef.current) return;
 
     try {
       console.log('Canceling invite:', inviteId);
@@ -157,24 +178,28 @@ export const useInvites = () => {
       }
 
       console.log('Invite canceled successfully');
-      toast({
-        title: "Convite cancelado",
-        description: "O convite foi cancelado com sucesso.",
-      });
-
-      loadInvites();
+      
+      if (mountedRef.current) {
+        toast({
+          title: "Convite cancelado",
+          description: "O convite foi cancelado com sucesso.",
+        });
+        loadInvites();
+      }
     } catch (error) {
       console.error('Error canceling invite:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao cancelar convite",
-        variant: "destructive",
-      });
+      if (mountedRef.current) {
+        toast({
+          title: "Erro",
+          description: "Erro ao cancelar convite",
+          variant: "destructive",
+        });
+      }
     }
   };
 
   const resendInvite = async (inviteId: string) => {
-    if (!church?.id) return;
+    if (!church?.id || !mountedRef.current) return;
 
     try {
       console.log('Resending invite:', inviteId);
@@ -197,27 +222,40 @@ export const useInvites = () => {
       }
 
       console.log('Invite resent successfully');
-      toast({
-        title: "Convite reenviado",
-        description: "O convite foi reenviado com sucesso.",
-      });
-
-      loadInvites();
+      
+      if (mountedRef.current) {
+        toast({
+          title: "Convite reenviado",
+          description: "O convite foi reenviado com sucesso.",
+        });
+        loadInvites();
+      }
     } catch (error) {
       console.error('Error resending invite:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao reenviar convite",
-        variant: "destructive",
-      });
+      if (mountedRef.current) {
+        toast({
+          title: "Erro",
+          description: "Erro ao reenviar convite",
+          variant: "destructive",
+        });
+      }
     }
   };
 
+  // Effect para carregar convites quando a igreja muda
   useEffect(() => {
-    if (church?.id) {
+    if (church?.id && mountedRef.current) {
       loadInvites();
     }
-  }, [loadInvites]);
+  }, [church?.id, loadInvites]);
+
+  // Cleanup effect
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
   return {
     invites,

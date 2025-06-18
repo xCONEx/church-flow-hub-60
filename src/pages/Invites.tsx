@@ -1,16 +1,15 @@
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UserPlus, Search, Clock, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { UserPlus, Search, Clock, CheckCircle, XCircle, AlertCircle, RotateCcw, Trash2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useToast } from '@/hooks/use-toast';
 import { SendInviteDialog } from '@/components/SendInviteDialog';
-import { supabase } from '@/integrations/supabase/client';
+import { useInvites } from '@/hooks/useInvites';
 
 const statusConfig = {
   pending: {
@@ -47,50 +46,15 @@ const roleLabels = {
 };
 
 export const Invites = () => {
-  const { user, church } = useAuth();
-  const { toast } = useToast();
+  const { user } = useAuth();
+  const { invites, isLoading, sendInvite, cancelInvite, resendInvite } = useInvites();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
-  const [invites, setInvites] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  const loadInvites = async () => {
-    if (!church?.id) return;
-
-    try {
-      const { data, error } = await supabase
-        .from('invites')
-        .select(`
-          *,
-          departments (name),
-          profiles!invited_by (name)
-        `)
-        .eq('church_id', church.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      setInvites(data || []);
-    } catch (error) {
-      console.error('Error loading invites:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar convites",
-        variant: "destructive",
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadInvites();
-  }, [church?.id]);
 
   const filteredInvites = invites.filter(invite => {
     const matchesSearch = invite.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          invite.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (invite.departments?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
+                         (invite.departmentName || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || invite.status === statusFilter;
     
     return matchesSearch && matchesStatus;
@@ -105,12 +69,8 @@ export const Invites = () => {
     expired: invites.filter(i => i.status === 'expired').length,
   };
 
-  const handleInviteSent = (inviteData: any) => {
-    toast({
-      title: "Convite Enviado",
-      description: `Convite enviado para ${inviteData.email} com sucesso!`
-    });
-    loadInvites();
+  const handleInviteSent = async (inviteData: any) => {
+    await sendInvite(inviteData);
   };
 
   if (isLoading) {
@@ -207,20 +167,21 @@ export const Invites = () => {
               <CardContent className="text-center py-12">
                 <UserPlus className="h-12 w-12 mx-auto text-gray-400 mb-4" />
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                  Nenhum convite encontrado
+                  {invites.length === 0 ? 'Nenhum convite enviado ainda' : 'Nenhum convite encontrado'}
                 </h3>
                 <p className="text-gray-600">
-                  {canInvite 
-                    ? "Comece enviando convites para novos membros." 
-                    : "Não há convites disponíveis."
+                  {invites.length === 0 
+                    ? (canInvite ? "Comece enviando convites para novos membros." : "Não há convites disponíveis.")
+                    : "Tente ajustar os filtros de busca."
                   }
                 </p>
               </CardContent>
             </Card>
           ) : (
             filteredInvites.map((invite) => {
-              const statusInfo = statusConfig[invite.status as keyof typeof statusConfig];
+              const statusInfo = statusConfig[invite.status];
               const StatusIcon = statusInfo.icon;
+              const isExpired = invite.expiresAt && new Date() > invite.expiresAt;
               
               return (
                 <Card key={invite.id} className="hover:shadow-lg transition-shadow">
@@ -234,7 +195,7 @@ export const Invites = () => {
                           <h3 className="font-semibold text-gray-900">{invite.name}</h3>
                           <p className="text-sm text-gray-600">{invite.email}</p>
                           <p className="text-xs text-gray-500">
-                            {roleLabels[invite.role as keyof typeof roleLabels]} • {invite.departments?.name || 'Geral'}
+                            {roleLabels[invite.role]} • {invite.departmentName || 'Geral'}
                           </p>
                         </div>
                       </div>
@@ -245,17 +206,39 @@ export const Invites = () => {
                             {statusInfo.label}
                           </Badge>
                           <p className="text-xs text-gray-500 mt-1">
-                            Convidado por {invite.profiles?.name || 'Admin'}
+                            Convidado por {invite.invitedByName || 'Admin'}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {new Date(invite.created_at).toLocaleDateString('pt-BR')}
+                            {invite.createdAt.toLocaleDateString('pt-BR')}
                           </p>
-                          {invite.status === 'pending' && invite.expires_at && (
-                            <p className="text-xs text-orange-600">
-                              Expira em {new Date(invite.expires_at).toLocaleDateString('pt-BR')}
+                          {invite.status === 'pending' && invite.expiresAt && (
+                            <p className={`text-xs ${isExpired ? 'text-red-600' : 'text-orange-600'}`}>
+                              {isExpired ? 'Expirado' : `Expira em ${invite.expiresAt.toLocaleDateString('pt-BR')}`}
                             </p>
                           )}
                         </div>
+
+                        {canInvite && (
+                          <div className="flex space-x-2">
+                            {invite.status === 'pending' && (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => resendInvite(invite.id)}
+                              >
+                                <RotateCcw className="h-4 w-4" />
+                              </Button>
+                            )}
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => cancelInvite(invite.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </CardContent>

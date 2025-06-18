@@ -6,40 +6,64 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Music, Search, Plus, FileText, Video, Headphones } from 'lucide-react';
+import { Music, Search, Plus, Edit, Trash2, ExternalLink, Play } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { AddSongDialog } from '@/components/AddSongDialog';
+import { EditSongDialog } from '@/components/EditSongDialog';
+import { useRepertoire } from '@/hooks/useRepertoire';
 
 export const Repertoire = () => {
   const { user } = useAuth();
+  const { songs, isLoading, addSong, updateSong, deleteSong } = useRepertoire();
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
-  const [songs, setSongs] = useState<any[]>([]);
 
   const canManageSongs = user?.role === 'admin' || user?.role === 'leader';
 
-  const handleAddSong = (songData: any) => {
-    const newSong = {
-      id: Date.now().toString(),
-      ...songData,
-      createdAt: new Date()
-    };
-    setSongs([...songs, newSong]);
+  const handleAddSong = async (songData: any) => {
+    await addSong(songData);
   };
 
+  const handleUpdateSong = async (songId: string, songData: any) => {
+    await updateSong(songId, songData);
+  };
+
+  const handleDeleteSong = async (songId: string) => {
+    if (confirm('Tem certeza que deseja remover esta música do repertório?')) {
+      await deleteSong(songId);
+    }
+  };
+
+  const filteredSongs = songs.filter(song => {
+    const matchesSearch = song.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         song.artist.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         song.tags.some(tag => tag.toLowerCase().includes(searchTerm.toLowerCase()));
+    const matchesCategory = selectedCategory === 'all' || song.category.toLowerCase() === selectedCategory;
+    
+    return matchesSearch && matchesCategory;
+  });
+
   const categories = [
-    { id: 'louvor', name: 'Louvor', count: 0 },
-    { id: 'adoracao', name: 'Adoração', count: 0 },
-    { id: 'infantil', name: 'Infantil', count: 0 },
-    { id: 'especial', name: 'Especial', count: 0 }
+    { id: 'adoracao', name: 'Adoração', count: songs.filter(s => s.category.toLowerCase() === 'adoracao').length },
+    { id: 'celebracao', name: 'Celebração', count: songs.filter(s => s.category.toLowerCase() === 'celebracao').length },
+    { id: 'ministracao', name: 'Ministração', count: songs.filter(s => s.category.toLowerCase() === 'ministracao').length },
+    { id: 'comunhao', name: 'Comunhão', count: songs.filter(s => s.category.toLowerCase() === 'comunhao').length }
   ];
 
   const stats = {
-    total: 0,
-    withChords: 0,
-    withVideos: 0,
+    total: songs.length,
+    withChords: songs.filter(s => s.cifraUrl).length,
+    withVideos: songs.filter(s => s.youtubeUrl).length,
     withAudio: 0
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Repertório">
+        <div className="text-center py-12">Carregando repertório...</div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Repertório">
@@ -103,66 +127,128 @@ export const Repertoire = () => {
           </Card>
           <Card>
             <CardContent className="p-4">
-              <div className="text-2xl font-bold text-orange-600">{stats.withAudio}</div>
-              <p className="text-sm text-gray-600">Com Áudio</p>
+              <div className="text-2xl font-bold text-orange-600">{songs.filter(s => s.hasLyrics).length}</div>
+              <p className="text-sm text-gray-600">Com Letra</p>
             </CardContent>
           </Card>
         </div>
 
-        <Tabs defaultValue="all" className="w-full">
+        <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
           <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="all">Todas</TabsTrigger>
-            <TabsTrigger value="louvor">Louvor</TabsTrigger>
-            <TabsTrigger value="adoracao">Adoração</TabsTrigger>
-            <TabsTrigger value="infantil">Infantil</TabsTrigger>
-            <TabsTrigger value="especial">Especial</TabsTrigger>
+            <TabsTrigger value="all">Todas ({songs.length})</TabsTrigger>
+            {categories.map(category => (
+              <TabsTrigger key={category.id} value={category.id}>
+                {category.name} ({category.count})
+              </TabsTrigger>
+            ))}
           </TabsList>
 
-          <TabsContent value="all" className="space-y-4">
-            {/* Empty State */}
-            <Card>
-              <CardContent className="text-center py-16">
-                <Music className="h-16 w-16 mx-auto text-gray-400 mb-4" />
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  Nenhuma música cadastrada ainda
-                </h3>
-                <p className="text-gray-600 mb-6">
-                  {canManageSongs 
-                    ? "Comece adicionando músicas ao repertório da igreja." 
-                    : "Aguarde um administrador ou líder adicionar as músicas."
-                  }
-                </p>
-                {canManageSongs && (
-                  <AddSongDialog
-                    trigger={
-                      <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
-                        <Plus className="h-4 w-4 mr-2" />
-                        Adicionar Primeira Música
-                      </Button>
-                    }
-                    onSongAdded={handleAddSong}
-                  />
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Outras tabs com empty state similar */}
-          {categories.map((category) => (
-            <TabsContent key={category.id} value={category.id} className="space-y-4">
+          <TabsContent value={selectedCategory} className="space-y-4">
+            {filteredSongs.length === 0 ? (
               <Card>
                 <CardContent className="text-center py-16">
                   <Music className="h-16 w-16 mx-auto text-gray-400 mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    Nenhuma música de {category.name} cadastrada
+                    {songs.length === 0 
+                      ? 'Nenhuma música cadastrada ainda'
+                      : 'Nenhuma música encontrada'
+                    }
                   </h3>
                   <p className="text-gray-600 mb-6">
-                    Adicione músicas da categoria {category.name} ao repertório.
+                    {songs.length === 0 
+                      ? (canManageSongs 
+                          ? "Comece adicionando músicas ao repertório da igreja." 
+                          : "Aguarde um administrador ou líder adicionar as músicas."
+                        )
+                      : "Tente ajustar os filtros de busca."
+                    }
                   </p>
+                  {canManageSongs && songs.length === 0 && (
+                    <AddSongDialog
+                      trigger={
+                        <Button className="bg-gradient-to-r from-blue-500 to-purple-500">
+                          <Plus className="h-4 w-4 mr-2" />
+                          Adicionar Primeira Música
+                        </Button>
+                      }
+                      onSongAdded={handleAddSong}
+                    />
+                  )}
                 </CardContent>
               </Card>
-            </TabsContent>
-          ))}
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {filteredSongs.map((song) => (
+                  <Card key={song.id} className="hover:shadow-lg transition-shadow">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <Badge variant="secondary">{song.category}</Badge>
+                        {song.originalKey && (
+                          <Badge variant="outline">Tom: {song.originalKey}</Badge>
+                        )}
+                      </div>
+                      <CardTitle className="text-lg">{song.title}</CardTitle>
+                      <CardDescription>{song.artist}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        {song.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {song.tags.map((tag) => (
+                              <Badge key={tag} variant="outline" className="text-xs">
+                                #{tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-2">
+                          {song.youtubeUrl && (
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={song.youtubeUrl} target="_blank" rel="noopener noreferrer">
+                                <Play className="h-3 w-3 mr-1" />
+                                YouTube
+                              </a>
+                            </Button>
+                          )}
+                          {song.cifraUrl && (
+                            <Button variant="outline" size="sm" asChild>
+                              <a href={song.cifraUrl} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="h-3 w-3 mr-1" />
+                                Cifra
+                              </a>
+                            </Button>
+                          )}
+                        </div>
+
+                        {canManageSongs && (
+                          <div className="flex justify-end space-x-2 pt-2 border-t">
+                            <EditSongDialog
+                              trigger={
+                                <Button variant="outline" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              }
+                              song={song}
+                              onSongUpdated={handleUpdateSong}
+                            />
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="text-red-600 hover:text-red-700"
+                              onClick={() => handleDeleteSong(song.id)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
         </Tabs>
       </div>
     </DashboardLayout>

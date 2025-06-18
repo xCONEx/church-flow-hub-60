@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Department } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,10 +13,12 @@ export const useChurchSettings = () => {
   const [departmentCounts, setDepartmentCounts] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
 
-  const loadDepartments = async () => {
+  const loadDepartments = useCallback(async () => {
     if (!church?.id) return;
 
     try {
+      console.log('Loading departments for church:', church.id);
+      
       const { data: deptData, error: deptError } = await supabase
         .from('departments')
         .select('*')
@@ -43,52 +45,81 @@ export const useChurchSettings = () => {
         }
       }
 
+      console.log('Departments loaded:', deptArray);
       setDepartments(deptArray);
 
-// Suponha que cada dept tenha ao menos um id: string
-type Department = { id: string };
-
-// Você pode ajustar esse tipo com base na sua estrutura real
-const loadDepartmentCounts = async (deptArray: Department[]) => {
-  const counts: Record<string, number> = {};
-
-  for (const dept of deptArray) {
-    try {
-      const { data: collaborators, error } = await supabase
-        .from('user_roles')
-        .select('id')
-        .eq('department_id', dept.id);
-
-      if (error) {
-        console.error('Supabase error:', error);
-        counts[dept.id] = 0;
-      } else {
-        counts[dept.id] = collaborators?.length ?? 0;
+      // Carregar contadores de colaboradores usando user_departments
+      const counts: Record<string, number> = {};
+      if (deptArray.length > 0) {
+        const { data: collaborators } = await supabase
+          .from('user_departments')
+          .select('department_id')
+          .in('department_id', deptArray.map(d => d.id));
+        
+        if (collaborators) {
+          collaborators.forEach(collab => {
+            if (collab.department_id) {
+              counts[collab.department_id] = (counts[collab.department_id] || 0) + 1;
+            }
+          });
+        }
       }
-    } catch (err) {
-      console.error('Error counting collaborators for dept', dept.id, err);
-      counts[dept.id] = 0;
+      
+      setDepartmentCounts(counts);
+
+    } catch (error) {
+      console.error('Error loading departments:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar departamentos",
+        variant: "destructive",
+      });
     }
-  }
+  }, [church?.id]);
 
-  setDepartmentCounts(counts);
-};
+  const loadServiceTypes = useCallback(async () => {
+    if (!church?.id) return;
 
+    try {
+      const { data: churchData } = await supabase
+        .from('churches')
+        .select('service_types')
+        .eq('id', church.id)
+        .single();
 
-  const loadServiceTypes = async () => {
-    setServiceTypes([
-      'Culto Domingo Manhã',
-      'Culto Domingo Noite', 
-      'Reunião de Oração',
-      'Culto de Jovens'
-    ]);
-  };
+      if (churchData?.service_types) {
+        setServiceTypes(churchData.service_types);
+      } else {
+        // Tipos de serviços padrão
+        setServiceTypes([
+          'Culto Domingo Manhã',
+          'Culto Domingo Noite', 
+          'Reunião de Oração',
+          'Culto de Jovens'
+        ]);
+      }
+    } catch (error) {
+      console.error('Error loading service types:', error);
+      // Usar tipos padrão em caso de erro
+      setServiceTypes([
+        'Culto Domingo Manhã',
+        'Culto Domingo Noite', 
+        'Reunião de Oração',
+        'Culto de Jovens'
+      ]);
+    }
+  }, [church?.id]);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
+    if (!church?.id) {
+      setIsLoading(false);
+      return;
+    }
+
     setIsLoading(true);
     await Promise.all([loadDepartments(), loadServiceTypes()]);
     setIsLoading(false);
-  };
+  }, [church?.id, loadDepartments, loadServiceTypes]);
 
   const handleDeleteDepartment = async (id: string) => {
     try {
@@ -116,17 +147,37 @@ const loadDepartmentCounts = async (deptArray: Department[]) => {
   };
 
   const handleDeleteServiceType = async (name: string) => {
-    setServiceTypes(prev => prev.filter(type => type !== name));
-    
-    toast({
-      title: "Sucesso",
-      description: "Tipo de culto removido com sucesso",
-    });
+    if (!church?.id) return;
+
+    try {
+      const updatedTypes = serviceTypes.filter(type => type !== name);
+      
+      const { error } = await supabase
+        .from('churches')
+        .update({ service_types: updatedTypes })
+        .eq('id', church.id);
+
+      if (error) throw error;
+
+      setServiceTypes(updatedTypes);
+      
+      toast({
+        title: "Sucesso",
+        description: "Tipo de culto removido com sucesso",
+      });
+    } catch (error) {
+      console.error('Error deleting service type:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao remover tipo de culto",
+        variant: "destructive",
+      });
+    }
   };
 
   useEffect(() => {
     loadData();
-  }, [church?.id]);
+  }, [loadData]);
 
   return {
     departments,

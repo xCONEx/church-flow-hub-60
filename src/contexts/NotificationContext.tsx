@@ -4,7 +4,7 @@ import { useAuth } from './AuthContext';
 
 interface Notification {
   id: string;
-  type: 'scale' | 'course' | 'event';
+  type: 'scale' | 'course' | 'event' | 'invite' | 'song';
   title: string;
   message: string;
   date: Date;
@@ -24,57 +24,43 @@ interface NotificationContextType {
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
-// Mock data para demonstração - em produção virá da API
-const mockNotifications: Notification[] = [
-  {
-    id: '1',
-    type: 'scale',
-    title: 'Nova Escala',
-    message: 'Você foi adicionado à escala "Culto Domingo Manhã" do dia 15/12/2024',
-    date: new Date('2024-12-12T10:00:00'),
-    read: false,
-    scaleId: '1'
-  },
-  {
-    id: '2',
-    type: 'course',
-    title: 'Novo Curso',
-    message: 'Curso "Fundamentos da Adoração" foi adicionado à plataforma',
-    date: new Date('2024-12-11T14:30:00'),
-    read: false,
-    courseId: '1'
-  },
-  {
-    id: '3',
-    type: 'event',
-    title: 'Novo Evento',
-    message: 'Evento "Conferência de Jovens 2024" foi publicado. Inscrições abertas!',
-    date: new Date('2024-12-10T14:00:00'),
-    read: false,
-    eventId: '1'
-  },
-  {
-    id: '4',
-    type: 'scale',
-    title: 'Confirmação Pendente',
-    message: 'Confirme sua presença na escala "Reunião de Oração" do dia 17/12/2024',
-    date: new Date('2024-12-10T16:00:00'),
-    read: true,
-    scaleId: '2'
-  }
-];
-
 export function NotificationProvider({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, church } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
   useEffect(() => {
-    // Carregar notificações do usuário
-    if (user) {
-      // Em produção, filtrar notificações por usuário
-      setNotifications(mockNotifications);
+    // Initialize with some example notifications
+    if (user && church) {
+      const initialNotifications: Notification[] = [
+        {
+          id: '1',
+          type: 'event',
+          title: 'Novos Eventos Disponíveis',
+          message: 'Confira os eventos programados para este mês',
+          date: new Date(Date.now() - 1000 * 60 * 30), // 30 minutes ago
+          read: false,
+        },
+        {
+          id: '2',
+          type: 'song',
+          title: 'Repertório Atualizado',
+          message: 'Novas músicas foram adicionadas ao repertório',
+          date: new Date(Date.now() - 1000 * 60 * 60 * 2), // 2 hours ago
+          read: false,
+        },
+        {
+          id: '3',
+          type: 'invite',
+          title: 'Novos Membros',
+          message: 'Convites pendentes precisam de atenção',
+          date: new Date(Date.now() - 1000 * 60 * 60 * 24), // 1 day ago
+          read: true,
+        }
+      ];
+      
+      setNotifications(initialNotifications);
     }
-  }, [user]);
+  }, [user, church]);
 
   const unreadCount = notifications.filter(n => !n.read).length;
 

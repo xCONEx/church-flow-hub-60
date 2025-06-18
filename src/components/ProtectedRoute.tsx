@@ -25,7 +25,7 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <Church className="h-12 w-12 text-blue-600 mx-auto mb-4 animate-pulse" />
-          <p className="text-gray-600">Verificando autenticação...</p>
+          <p className="text-gray-600">Verificando acesso...</p>
         </div>
       </div>
     );
@@ -33,12 +33,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
 
   // Redirect to login if not authenticated
   if (!user) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // Check if user has required role
   if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
-    console.log('ProtectedRoute: Access denied. User role:', user.role, 'Required:', allowedRoles);
     return <Navigate to="/unauthorized" replace />;
   }
 
@@ -56,22 +55,13 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
           </CardHeader>
           <CardContent className="text-center space-y-4">
             <p className="text-gray-600">
-              Entre em contato com um administrador para ser convidado para uma igreja e ter acesso às funcionalidades do sistema.
+              Entre em contato com um administrador para ser convidado para uma igreja.
             </p>
-            <div className="bg-blue-50 p-4 rounded-lg">
-              <p className="text-sm text-blue-700">
-                <strong>Próximos passos:</strong><br />
-                1. Aguarde o convite de um administrador<br />
-                2. Aceite o convite quando receber<br />
-                3. Volte aqui para acessar os recursos
-              </p>
-            </div>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  console.log('ProtectedRoute: Access granted for user:', user.role);
   return <>{children}</>;
 };

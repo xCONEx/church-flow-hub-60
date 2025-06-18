@@ -20,11 +20,12 @@ export const GlobalReportsDialog = ({ trigger }: GlobalReportsDialogProps) => {
     // TODO: Implementar download de relatórios
   };
 
-  const churchGrowthData = churches.map(church => ({
+  // Mock data for church performance since we don't have actual member data yet
+  const churchGrowthData = churches.map((church, index) => ({
     name: church.name,
-    members: church.totalMembers,
-    active: church.activeMembers,
-    growth: Math.round((church.activeMembers / church.totalMembers) * 100),
+    members: 25 + (index * 15), // Mock total members
+    active: 20 + (index * 10), // Mock active members
+    growth: Math.round(((20 + (index * 10)) / (25 + (index * 15))) * 100),
   }));
 
   return (
@@ -86,7 +87,7 @@ export const GlobalReportsDialog = ({ trigger }: GlobalReportsDialogProps) => {
                 <CardContent>
                   <div className="text-2xl font-bold">{stats.activeChurches}</div>
                   <p className="text-xs text-muted-foreground">
-                    {Math.round((stats.activeChurches / stats.totalChurches) * 100)}% ativas
+                    {stats.totalChurches > 0 ? Math.round((stats.activeChurches / stats.totalChurches) * 100) : 0}% ativas
                   </p>
                 </CardContent>
               </Card>
@@ -98,7 +99,7 @@ export const GlobalReportsDialog = ({ trigger }: GlobalReportsDialogProps) => {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {Math.round(stats.totalUsers / stats.totalChurches)}
+                    {stats.totalChurches > 0 ? Math.round(stats.totalUsers / stats.totalChurches) : 0}
                   </div>
                   <p className="text-xs text-muted-foreground">por igreja</p>
                 </CardContent>
@@ -117,7 +118,7 @@ export const GlobalReportsDialog = ({ trigger }: GlobalReportsDialogProps) => {
             <Card>
               <CardHeader>
                 <CardTitle>Desempenho por Igreja</CardTitle>
-                <CardDescription>Membros totais vs ativos por igreja</CardDescription>
+                <CardDescription>Membros totais vs ativos por igreja (dados simulados)</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
@@ -213,7 +214,7 @@ export const GlobalReportsDialog = ({ trigger }: GlobalReportsDialogProps) => {
             <Card>
               <CardHeader>
                 <CardTitle>Atividades Recentes do Sistema</CardTitle>
-                <CardDescription>Últimas 10 atividades registradas</CardDescription>
+                <CardDescription>Últimas atividades registradas</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
@@ -224,12 +225,12 @@ export const GlobalReportsDialog = ({ trigger }: GlobalReportsDialogProps) => {
                         <div>
                           <p className="font-medium">Atividade em {church.name}</p>
                           <p className="text-sm text-gray-600">
-                            {church.activeMembers} membros ativos
+                            Igreja cadastrada no sistema
                           </p>
                         </div>
                       </div>
                       <span className="text-sm text-gray-500">
-                        {church.lastActivity.toLocaleDateString('pt-BR')}
+                        {new Date(church.created_at).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
                   ))}

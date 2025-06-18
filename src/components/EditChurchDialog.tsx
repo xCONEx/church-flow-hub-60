@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -18,11 +18,11 @@ interface Church {
 
 interface EditChurchDialogProps {
   church: Church;
-  isOpen: boolean;
-  onClose: () => void;
+  trigger: React.ReactNode;
 }
 
-export const EditChurchDialog = ({ church, isOpen, onClose }: EditChurchDialogProps) => {
+export const EditChurchDialog = ({ church, trigger }: EditChurchDialogProps) => {
+  const [isOpen, setIsOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: church.name,
     address: church.address || '',
@@ -60,7 +60,7 @@ export const EditChurchDialog = ({ church, isOpen, onClose }: EditChurchDialogPr
         title: "Sucesso!",
         description: "Igreja atualizada com sucesso",
       });
-      onClose();
+      setIsOpen(false);
     } catch (error) {
       toast({
         title: "Erro",
@@ -75,7 +75,10 @@ export const EditChurchDialog = ({ church, isOpen, onClose }: EditChurchDialogPr
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        {trigger}
+      </DialogTrigger>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Editar Igreja</DialogTitle>
@@ -133,7 +136,7 @@ export const EditChurchDialog = ({ church, isOpen, onClose }: EditChurchDialogPr
             <Button
               type="button"
               variant="outline"
-              onClick={onClose}
+              onClick={() => setIsOpen(false)}
               disabled={isLoading}
             >
               Cancelar

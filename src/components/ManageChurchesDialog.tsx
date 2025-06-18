@@ -1,176 +1,145 @@
+
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Building, Users, Search, Edit, Trash2 } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Building, Users, Trash2, Edit, Eye } from 'lucide-react';
 import { useMaster } from '@/contexts/MasterContext';
 import { useToast } from '@/hooks/use-toast';
 import { EditChurchDialog } from '@/components/EditChurchDialog';
 
-interface ManageChurchesDialogProps {
-  trigger?: React.ReactNode;
-}
-
-export const ManageChurchesDialog = ({ trigger }: ManageChurchesDialogProps) => {
+export const ManageChurchesDialog = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [editingChurch, setEditingChurch] = useState<any>(null);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  
-  const { churches, deactivateChurch, isLoading } = useMaster();
+  const { churches, isLoading, deleteChurch } = useMaster();
   const { toast } = useToast();
 
-  const filteredChurches = churches.filter(church =>
-    church.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    church.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const handleEdit = (church: any) => {
-    setEditingChurch(church);
-    setIsEditDialogOpen(true);
-  };
-
-  const handleDeactivate = async (churchId: string, churchName: string) => {
-    if (window.confirm(`Tem certeza que deseja desativar a igreja "${churchName}"?`)) {
-      try {
-        await deactivateChurch(churchId);
-        toast({
-          title: "Igreja desativada",
-          description: `${churchName} foi desativada com sucesso`,
-        });
-      } catch (error) {
-        toast({
-          title: "Erro",
-          description: "Erro ao desativar igreja",
-          variant: "destructive",
-        });
-      }
+  const handleDeleteChurch = async (churchId: string, churchName: string) => {
+    try {
+      await deleteChurch(churchId);
+      toast({
+        title: "Igreja Deletada",
+        description: `${churchName} foi removida do sistema com sucesso.`,
+      });
+    } catch (error) {
+      toast({
+        title: "Erro",
+        description: "Erro ao deletar igreja. Tente novamente.",
+        variant: "destructive",
+      });
     }
   };
 
   return (
-    <>
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogTrigger asChild>
-          {trigger || (
-            <Button variant="outline" className="h-20 flex-col">
-              <Building className="h-6 w-6 mb-2" />
-              Gerenciar Igrejas
-            </Button>
-          )}
-        </DialogTrigger>
-        <DialogContent className="sm:max-w-[800px] max-h-[600px]">
-          <DialogHeader>
-            <DialogTitle>Gerenciar Igrejas</DialogTitle>
-          </DialogHeader>
-          
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button className="h-20 flex-col bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600">
+          <Building className="h-6 w-6 mb-2" />
+          Gerenciar Igrejas
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Gerenciar Igrejas</DialogTitle>
+        </DialogHeader>
+        
+        {isLoading ? (
+          <div className="flex justify-center py-8">
+            <div className="animate-spin rounded-full h-8 w-8 border-4 border-blue-500 border-t-transparent"></div>
+          </div>
+        ) : (
           <div className="space-y-4">
-            {/* Search */}
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-              <Input
-                placeholder="Buscar igrejas..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-
-            {/* Churches List */}
-            <div className="space-y-3 max-h-[400px] overflow-y-auto">
-              {filteredChurches.map((church) => (
-                <div key={church.id} className="border rounded-lg p-4 space-y-3">
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <h3 className="font-semibold">{church.name}</h3>
-                        <Badge variant={church.isActive ? "default" : "secondary"}>
-                          {church.isActive ? "Ativa" : "Inativa"}
+            {churches.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                Nenhuma igreja cadastrada ainda.
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {churches.map((church) => (
+                  <Card key={church.id}>
+                    <CardHeader>
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-lg">{church.name}</CardTitle>
+                          <p className="text-sm text-muted-foreground">
+                            Admin: {church.admin_name}
+                          </p>
+                        </div>
+                        <Badge variant="secondary">
+                          {new Date(church.created_at).toLocaleDateString('pt-BR')}
                         </Badge>
                       </div>
-                      {church.address && (
-                        <p className="text-sm text-gray-600">{church.address}</p>
-                      )}
-                      <div className="flex items-center space-x-4 text-sm text-gray-500">
-                        {church.email && (
-                          <span className="flex items-center space-x-1">
-                            <span>Admin:</span>
-                            <span className="font-medium">{church.email}</span>
-                          </span>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-2 mb-4">
+                        <p className="text-sm">
+                          <strong>Email:</strong> {church.email}
+                        </p>
+                        {church.phone && (
+                          <p className="text-sm">
+                            <strong>Telefone:</strong> {church.phone}
+                          </p>
                         )}
-                        {church.phone && <span>{church.phone}</span>}
+                        {church.address && (
+                          <p className="text-sm">
+                            <strong>Endereço:</strong> {church.address}
+                          </p>
+                        )}
                       </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(church)}
-                        disabled={isLoading}
-                      >
-                        <Edit className="h-4 w-4" />
-                      </Button>
-                      {church.isActive && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleDeactivate(church.id, church.name)}
-                          disabled={isLoading}
-                        >
-                          <Trash2 className="h-4 w-4" />
+                      
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm">
+                          <Eye className="h-4 w-4 mr-1" />
+                          Detalhes
                         </Button>
-                      )}
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-3 gap-4 pt-2 border-t">
-                    <div className="text-center">
-                      <div className="flex items-center justify-center space-x-1">
-                        <Users className="h-4 w-4 text-gray-400" />
-                        <span className="text-sm font-medium">{church.totalMembers}</span>
+                        
+                        <EditChurchDialog
+                          church={church}
+                          trigger={
+                            <Button variant="outline" size="sm">
+                              <Edit className="h-4 w-4 mr-1" />
+                              Editar
+                            </Button>
+                          }
+                        />
+                        
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button variant="destructive" size="sm">
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Deletar
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Confirmar Exclusão</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Tem certeza que deseja deletar a igreja <strong>{church.name}</strong>? 
+                                Esta ação irá remover todos os dados relacionados (departamentos, escalas, etc.) 
+                                e não pode ser desfeita.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteChurch(church.id, church.name)}
+                                className="bg-red-600 hover:bg-red-700"
+                              >
+                                Deletar Igreja
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </div>
-                      <p className="text-xs text-gray-500">Total Membros</p>
-                    </div>
-                    <div className="text-center">
-                      <div className="flex items-center justify-center space-x-1">
-                        <Users className="h-4 w-4 text-green-500" />
-                        <span className="text-sm font-medium">{church.activeMembers}</span>
-                      </div>
-                      <p className="text-xs text-gray-500">Ativos</p>
-                    </div>
-                    <div className="text-center">
-                      <span className="text-sm font-medium">
-                        {church.lastActivity.toLocaleDateString('pt-BR')}
-                      </span>
-                      <p className="text-xs text-gray-500">Última Atividade</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-              
-              {filteredChurches.length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <Building className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                  <p>Nenhuma igreja encontrada</p>
-                </div>
-              )}
-            </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {editingChurch && (
-        <EditChurchDialog
-          church={editingChurch}
-          isOpen={isEditDialogOpen}
-          onClose={() => {
-            setIsEditDialogOpen(false);
-            setEditingChurch(null);
-          }}
-        />
-      )}
-    </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 };

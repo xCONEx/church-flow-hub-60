@@ -7,16 +7,16 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from '@/hooks/use-toast';
+import { useChurchSettings } from '@/hooks/useChurchSettings';
 
 interface SendInviteDialogProps {
   trigger: React.ReactNode;
-  onInviteSent: (inviteData: any) => void;
+  onInviteSent: (inviteData: any) => Promise<void>;
 }
 
 export const SendInviteDialog = ({ trigger, onInviteSent }: SendInviteDialogProps) => {
-  const { user, church } = useAuth();
+  const { user } = useAuth();
+  const { departments } = useChurchSettings();
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -27,61 +27,13 @@ export const SendInviteDialog = ({ trigger, onInviteSent }: SendInviteDialogProp
     message: ''
   });
 
-  const [departments, setDepartments] = useState(church?.departments || []);
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLoading || !church || !user) return;
+    if (isLoading) return;
 
     setIsLoading(true);
     try {
-      console.log('Enviando convite:', formData);
-
-      const { data, error } = await supabase
-        .from('invites')
-        .insert({
-          email: formData.email,
-          name: formData.name,
-          role: formData.role as any,
-          department_id: formData.departmentId || null,
-          church_id: church.id,
-          invited_by: user.id
-        })
-        .select()
-        .single();
-
-      if (error) {
-        console.error('Erro ao enviar convite:', error);
-        toast({
-          title: "Erro ao enviar convite",
-          description: error.message,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      console.log('Convite criado:', data);
-
-      // Simular dados do convite para o callback
-      const inviteData = {
-        id: data.id,
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        department: departments.find(d => d.id === formData.departmentId)?.name || 'Geral',
-        status: 'pending',
-        invitedBy: user.name,
-        invitedAt: new Date(data.created_at),
-        expiresAt: new Date(data.expires_at)
-      };
-
-      onInviteSent(inviteData);
-      
-      toast({
-        title: "Convite enviado com sucesso!",
-        description: `O convite foi enviado para ${formData.email}.`
-      });
-
+      await onInviteSent(formData);
       setOpen(false);
       setFormData({
         name: '',
@@ -90,13 +42,8 @@ export const SendInviteDialog = ({ trigger, onInviteSent }: SendInviteDialogProp
         departmentId: '',
         message: ''
       });
-    } catch (error: any) {
+    } catch (error) {
       console.error('Erro ao enviar convite:', error);
-      toast({
-        title: "Erro ao enviar convite",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
-        variant: "destructive"
-      });
     } finally {
       setIsLoading(false);
     }
@@ -145,7 +92,7 @@ export const SendInviteDialog = ({ trigger, onInviteSent }: SendInviteDialogProp
         <DialogHeader>
           <DialogTitle>Enviar Convite</DialogTitle>
           <DialogDescription>
-            Convide um novo membro para participar da {church?.name || 'igreja'}
+            Convide um novo membro para participar da igreja
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">

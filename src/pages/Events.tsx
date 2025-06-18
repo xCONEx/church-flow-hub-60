@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,7 +16,7 @@ import { ptBR } from 'date-fns/locale';
 
 export const Events = () => {
   const { user } = useAuth();
-  const { events, activeEvents, getEventRegistrations } = useEvents();
+  const { events, activeEvents, getEventRegistrations, loading } = useEvents();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<string | null>(null);
   const [manageEventId, setManageEventId] = useState<string | null>(null);
@@ -46,6 +46,14 @@ export const Events = () => {
   };
 
   const displayEvents = canManageEvents ? events : activeEvents;
+
+  if (loading) {
+    return (
+      <DashboardLayout>
+        <div className="text-center py-12">Carregando eventos...</div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout>
@@ -126,7 +134,7 @@ export const Events = () => {
                     <div className="space-y-3">
                       <div className="flex items-center text-sm text-gray-600">
                         <Calendar className="h-4 w-4 mr-2" />
-                        {format(event.date, 'dd/MM/yyyy HH:mm', { locale: ptBR })}
+                        {format(new Date(event.date), 'dd/MM/yyyy HH:mm', { locale: ptBR })}
                       </div>
                       
                       <div className="flex items-center text-sm text-gray-600">

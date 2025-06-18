@@ -1,4 +1,5 @@
-import { useState } from 'react';
+
+import { useState, useEffect } from 'react';
 import { DashboardLayout } from '@/components/Layout/DashboardLayout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -9,65 +10,7 @@ import { UserPlus, Search, Clock, CheckCircle, XCircle, AlertCircle } from 'luci
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { SendInviteDialog } from '@/components/SendInviteDialog';
-
-// Mock data
-const mockInvites = [
-  {
-    id: '1',
-    email: 'maria.santos@email.com',
-    name: 'Maria Santos',
-    role: 'collaborator',
-    department: 'Louvor',
-    status: 'pending',
-    invitedBy: 'Pastor João',
-    invitedAt: new Date('2024-01-20'),
-    expiresAt: new Date('2024-01-27'),
-  },
-  {
-    id: '2',
-    email: 'pedro.oliveira@email.com',
-    name: 'Pedro Oliveira',
-    role: 'leader',
-    department: 'Mídia',
-    status: 'accepted',
-    invitedBy: 'Pastor João',
-    invitedAt: new Date('2024-01-18'),
-    acceptedAt: new Date('2024-01-19'),
-  },
-  {
-    id: '3',
-    email: 'carlos.silva@email.com',
-    name: 'Carlos Silva',
-    role: 'collaborator',
-    department: 'Sonoplastia',
-    status: 'expired',
-    invitedBy: 'Ana Karolina',
-    invitedAt: new Date('2024-01-10'),
-    expiresAt: new Date('2024-01-17'),
-  },
-  {
-    id: '4',
-    email: 'juliana.costa@email.com',
-    name: 'Juliana Costa',
-    role: 'collaborator',
-    department: 'Louvor',
-    status: 'declined',
-    invitedBy: 'Pastor João',
-    invitedAt: new Date('2024-01-15'),
-    declinedAt: new Date('2024-01-16'),
-  },
-  {
-    id: '5',
-    email: 'rafael.santos@email.com',
-    name: 'Rafael Santos',
-    role: 'collaborator',
-    department: 'Instrumentos',
-    status: 'pending',
-    invitedBy: 'Yuri Adriel',
-    invitedAt: new Date('2024-01-22'),
-    expiresAt: new Date('2024-01-29'),
-  }
-];
+import { supabase } from '@/integrations/supabase/client';
 
 const statusConfig = {
   pending: {
@@ -97,20 +40,57 @@ const statusConfig = {
 };
 
 const roleLabels = {
+  admin: 'Administrador',
   leader: 'Líder',
-  collaborator: 'Colaborador'
+  collaborator: 'Colaborador',
+  member: 'Membro'
 };
 
 export const Invites = () => {
-  const { user } = useAuth();
+  const { user, church } = useAuth();
   const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [invites, setInvites] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const filteredInvites = mockInvites.filter(invite => {
+  const loadInvites = async () => {
+    if (!church?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('invites')
+        .select(`
+          *,
+          departments (name),
+          profiles!invited_by (name)
+        `)
+        .eq('church_id', church.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      setInvites(data || []);
+    } catch (error) {
+      console.error('Error loading invites:', error);
+      toast({
+        title: "Erro",
+        description: "Erro ao carregar convites",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadInvites();
+  }, [church?.id]);
+
+  const filteredInvites = invites.filter(invite => {
     const matchesSearch = invite.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          invite.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         invite.department.toLowerCase().includes(searchTerm.toLowerCase());
+                         (invite.departments?.name || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || invite.status === statusFilter;
     
     return matchesSearch && matchesStatus;
@@ -119,10 +99,10 @@ export const Invites = () => {
   const canInvite = user?.role === 'admin' || user?.role === 'leader';
 
   const stats = {
-    total: mockInvites.length,
-    pending: mockInvites.filter(i => i.status === 'pending').length,
-    accepted: mockInvites.filter(i => i.status === 'accepted').length,
-    expired: mockInvites.filter(i => i.status === 'expired').length,
+    total: invites.length,
+    pending: invites.filter(i => i.status === 'pending').length,
+    accepted: invites.filter(i => i.status === 'accepted').length,
+    expired: invites.filter(i => i.status === 'expired').length,
   };
 
   const handleInviteSent = (inviteData: any) => {
@@ -130,7 +110,16 @@ export const Invites = () => {
       title: "Convite Enviado",
       description: `Convite enviado para ${inviteData.email} com sucesso!`
     });
+    loadInvites();
   };
+
+  if (isLoading) {
+    return (
+      <DashboardLayout title="Convites">
+        <div className="text-center py-12">Carregando convites...</div>
+      </DashboardLayout>
+    );
+  }
 
   return (
     <DashboardLayout title="Convites">
@@ -213,68 +202,67 @@ export const Invites = () => {
 
         {/* Invites List */}
         <div className="space-y-4">
-          {filteredInvites.map((invite) => {
-            const statusInfo = statusConfig[invite.status as keyof typeof statusConfig];
-            const StatusIcon = statusInfo.icon;
-            
-            return (
-              <Card key={invite.id} className="hover:shadow-lg transition-shadow">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className={`p-2 rounded-full ${statusInfo.iconColor}`}>
-                        <StatusIcon className="h-5 w-5" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-gray-900">{invite.name}</h3>
-                        <p className="text-sm text-gray-600">{invite.email}</p>
-                        <p className="text-xs text-gray-500">
-                          {roleLabels[invite.role as keyof typeof roleLabels]} • {invite.department}
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-4">
-                      <div className="text-right">
-                        <Badge className={statusInfo.color}>
-                          {statusInfo.label}
-                        </Badge>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Convidado por {invite.invitedBy}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          {invite.invitedAt.toLocaleDateString('pt-BR')}
-                        </p>
-                        {invite.status === 'pending' && (
-                          <p className="text-xs text-orange-600">
-                            Expira em {invite.expiresAt.toLocaleDateString('pt-BR')}
+          {filteredInvites.length === 0 ? (
+            <Card>
+              <CardContent className="text-center py-12">
+                <UserPlus className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                  Nenhum convite encontrado
+                </h3>
+                <p className="text-gray-600">
+                  {canInvite 
+                    ? "Comece enviando convites para novos membros." 
+                    : "Não há convites disponíveis."
+                  }
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            filteredInvites.map((invite) => {
+              const statusInfo = statusConfig[invite.status as keyof typeof statusConfig];
+              const StatusIcon = statusInfo.icon;
+              
+              return (
+                <Card key={invite.id} className="hover:shadow-lg transition-shadow">
+                  <CardContent className="p-6">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-4">
+                        <div className={`p-2 rounded-full ${statusInfo.iconColor}`}>
+                          <StatusIcon className="h-5 w-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-semibold text-gray-900">{invite.name}</h3>
+                          <p className="text-sm text-gray-600">{invite.email}</p>
+                          <p className="text-xs text-gray-500">
+                            {roleLabels[invite.role as keyof typeof roleLabels]} • {invite.departments?.name || 'Geral'}
                           </p>
-                        )}
+                        </div>
                       </div>
                       
-                      {canInvite && (
-                        <div className="flex space-x-2">
-                          {invite.status === 'pending' && (
-                            <Button variant="outline" size="sm">
-                              Reenviar
-                            </Button>
+                      <div className="flex items-center space-x-4">
+                        <div className="text-right">
+                          <Badge className={statusInfo.color}>
+                            {statusInfo.label}
+                          </Badge>
+                          <p className="text-xs text-gray-500 mt-1">
+                            Convidado por {invite.profiles?.name || 'Admin'}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(invite.created_at).toLocaleDateString('pt-BR')}
+                          </p>
+                          {invite.status === 'pending' && invite.expires_at && (
+                            <p className="text-xs text-orange-600">
+                              Expira em {new Date(invite.expires_at).toLocaleDateString('pt-BR')}
+                            </p>
                           )}
-                          {invite.status === 'expired' && (
-                            <Button variant="outline" size="sm">
-                              Renovar
-                            </Button>
-                          )}
-                          <Button variant="outline" size="sm">
-                            Detalhes
-                          </Button>
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </CardContent>
+                </Card>
+              );
+            })
+          )}
         </div>
       </div>
     </DashboardLayout>

@@ -3,6 +3,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Event, EventRegistration, EventGuest } from '@/types';
 import { useAuth } from './AuthContext';
 import { useNotifications } from './NotificationContext';
+import { supabase } from '@/integrations/supabase/client';
 
 interface EventContextType {
   events: Event[];
@@ -15,70 +16,18 @@ interface EventContextType {
   registerForEvent: (eventId: string, attendeeData?: Partial<EventGuest>) => Promise<EventRegistration>;
   checkInAttendee: (registrationId: string, readerEmail: string) => Promise<void>;
   getEventRegistrations: (eventId: string) => EventRegistration[];
-  isLoading: boolean;
+  loading: boolean;
 }
 
 const EventContext = createContext<EventContextType | undefined>(undefined);
 
-// Mock data para desenvolvimento
-const mockEvents: Event[] = [
-  {
-    id: '1',
-    title: 'Conferência de Jovens 2024',
-    description: 'Uma conferência especial para jovens com palestras, música e fellowship.',
-    date: new Date('2024-12-20'),
-    location: 'Auditório Principal',
-    churchId: '1',
-    createdBy: '1',
-    maxAttendees: 200,
-    isPublic: true,
-    status: 'published',
-    qrReaders: ['admin@igreja.com', 'lider@igreja.com'],
-    registrationDeadline: new Date('2024-12-18'),
-    tags: ['jovens', 'conferência'],
-    createdAt: new Date('2024-11-01'),
-    updatedAt: new Date('2024-11-01'),
-  },
-  {
-    id: '2',
-    title: 'Retiro Espiritual',
-    description: 'Fim de semana de renovação espiritual em local reservado.',
-    date: new Date('2024-12-15'),
-    location: 'Chácara Bethel',
-    churchId: '1',
-    createdBy: '2',
-    maxAttendees: 50,
-    isPublic: false,
-    status: 'published',
-    qrReaders: ['lider@igreja.com'],
-    registrationDeadline: new Date('2024-12-10'),
-    tags: ['retiro', 'espiritual'],
-    createdAt: new Date('2024-10-15'),
-    updatedAt: new Date('2024-10-15'),
-  }
-];
-
-const mockRegistrations: EventRegistration[] = [
-  {
-    id: '1',
-    eventId: '1',
-    attendeeId: '3',
-    attendeeType: 'member',
-    qrCode: 'QR-EVT1-USER3-2024',
-    registeredAt: new Date('2024-11-05'),
-    checkedIn: false,
-  }
-];
-
-const mockGuests: EventGuest[] = [];
-
 export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user, church } = useAuth();
   const { addNotification } = useNotifications();
-  const [events, setEvents] = useState<Event[]>(mockEvents);
-  const [registrations, setRegistrations] = useState<EventRegistration[]>(mockRegistrations);
-  const [guests, setGuests] = useState<EventGuest[]>(mockGuests);
-  const [isLoading, setIsLoading] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
+  const [guests, setGuests] = useState<EventGuest[]>([]);
+  const [loading, setLoading] = useState(false);
 
   const activeEvents = events.filter(event => 
     event.status === 'published' && 
@@ -86,117 +35,301 @@ export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     event.churchId === church?.id
   );
 
-  const createEvent = async (eventData: Partial<Event>): Promise<Event> => {
-    setIsLoading(true);
-    
-    const newEvent: Event = {
-      id: Date.now().toString(),
-      title: eventData.title || '',
-      description: eventData.description || '',
-      date: eventData.date || new Date(),
-      location: eventData.location || '',
-      churchId: church?.id || '',
-      createdBy: user?.id || '',
-      maxAttendees: eventData.maxAttendees,
-      isPublic: eventData.isPublic || false,
-      status: 'draft',
-      qrReaders: eventData.qrReaders || [],
-      registrationDeadline: eventData.registrationDeadline,
-      tags: eventData.tags || [],
-      image: eventData.image,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-    };
+  const loadEvents = async () => {
+    if (!church?.id) return;
 
-    setEvents(prev => [...prev, newEvent]);
-    setIsLoading(false);
-    return newEvent;
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('events')
+        .select('*')
+        .eq('church_id', church.id)
+        .order('date', { ascending: true });
+
+      if (error) throw error;
+
+      const mappedEvents: Event[] = (data || []).map(event => ({
+        id: event.id,
+        title: event.title,
+        description: event.description || '',
+        date: new Date(event.date),
+        location: event.location,
+        churchId: event.church_id,
+        createdBy: event.created_by,
+        maxAttendees: event.max_attendees,
+        isPublic: event.is_public,
+        status: event.status,
+        qrReaders: event.qr_readers || [],
+        registrationDeadline: event.registration_deadline ? new Date(event.registration_deadline) : undefined,
+        tags: event.tags || [],
+        image: event.image,
+        createdAt: new Date(event.created_at),
+        updatedAt: new Date(event.updated_at),
+      }));
+
+      setEvents(mappedEvents);
+    } catch (error) {
+      console.error('Error loading events:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadRegistrations = async () => {
+    if (!church?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('event_registrations')
+        .select(`
+          *,
+          events!inner(church_id)
+        `)
+        .eq('events.church_id', church.id);
+
+      if (error) throw error;
+
+      const mappedRegistrations: EventRegistration[] = (data || []).map(reg => ({
+        id: reg.id,
+        eventId: reg.event_id,
+        attendeeId: reg.attendee_id,
+        attendeeType: reg.attendee_type as 'member' | 'guest',
+        qrCode: reg.qr_code,
+        registeredAt: new Date(reg.registered_at),
+        checkedIn: reg.checked_in,
+        checkedInAt: reg.checked_in_at ? new Date(reg.checked_in_at) : undefined,
+        checkedInBy: reg.checked_in_by,
+      }));
+
+      setRegistrations(mappedRegistrations);
+    } catch (error) {
+      console.error('Error loading registrations:', error);
+    }
+  };
+
+  useEffect(() => {
+    if (church?.id) {
+      loadEvents();
+      loadRegistrations();
+    }
+  }, [church?.id]);
+
+  const createEvent = async (eventData: Partial<Event>): Promise<Event> => {
+    if (!church?.id || !user?.id) throw new Error('Church or user not found');
+
+    setLoading(true);
+    
+    try {
+      const { data, error } = await supabase
+        .from('events')
+        .insert({
+          title: eventData.title || '',
+          description: eventData.description || '',
+          date: eventData.date?.toISOString() || new Date().toISOString(),
+          location: eventData.location || '',
+          church_id: church.id,
+          created_by: user.id,
+          max_attendees: eventData.maxAttendees,
+          is_public: eventData.isPublic || false,
+          status: 'draft',
+          qr_readers: eventData.qrReaders || [],
+          registration_deadline: eventData.registrationDeadline?.toISOString(),
+          tags: eventData.tags || [],
+          image: eventData.image,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newEvent: Event = {
+        id: data.id,
+        title: data.title,
+        description: data.description || '',
+        date: new Date(data.date),
+        location: data.location,
+        churchId: data.church_id,
+        createdBy: data.created_by,
+        maxAttendees: data.max_attendees,
+        isPublic: data.is_public,
+        status: data.status,
+        qrReaders: data.qr_readers || [],
+        registrationDeadline: data.registration_deadline ? new Date(data.registration_deadline) : undefined,
+        tags: data.tags || [],
+        image: data.image,
+        createdAt: new Date(data.created_at),
+        updatedAt: new Date(data.updated_at),
+      };
+
+      setEvents(prev => [...prev, newEvent]);
+      return newEvent;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const updateEvent = async (eventId: string, eventData: Partial<Event>) => {
-    setIsLoading(true);
-    const event = events.find(e => e.id === eventId);
-    const wasPublished = event?.status === 'published';
-    const isBeingPublished = eventData.status === 'published' && !wasPublished;
+    setLoading(true);
     
-    setEvents(prev => prev.map(event => 
-      event.id === eventId 
-        ? { ...event, ...eventData, updatedAt: new Date() }
-        : event
-    ));
+    try {
+      const { error } = await supabase
+        .from('events')
+        .update({
+          title: eventData.title,
+          description: eventData.description,
+          date: eventData.date?.toISOString(),
+          location: eventData.location,
+          max_attendees: eventData.maxAttendees,
+          is_public: eventData.isPublic,
+          status: eventData.status,
+          qr_readers: eventData.qrReaders,
+          registration_deadline: eventData.registrationDeadline?.toISOString(),
+          tags: eventData.tags,
+          image: eventData.image,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', eventId);
 
-    // Criar notificação quando evento é publicado
-    if (isBeingPublished && event) {
-      addNotification({
-        type: 'event',
-        title: 'Novo Evento Publicado',
-        message: `O evento "${event.title}" foi publicado. Inscrições abertas!`,
-        eventId: event.id
-      });
+      if (error) throw error;
+
+      const event = events.find(e => e.id === eventId);
+      const wasPublished = event?.status === 'published';
+      const isBeingPublished = eventData.status === 'published' && !wasPublished;
+      
+      setEvents(prev => prev.map(event => 
+        event.id === eventId 
+          ? { ...event, ...eventData, updatedAt: new Date() }
+          : event
+      ));
+
+      if (isBeingPublished && event) {
+        addNotification({
+          type: 'event',
+          title: 'Novo Evento Publicado',
+          message: `O evento "${event.title}" foi publicado. Inscrições abertas!`,
+          eventId: event.id
+        });
+      }
+    } finally {
+      setLoading(false);
     }
-
-    setIsLoading(false);
   };
 
   const deleteEvent = async (eventId: string) => {
-    setIsLoading(true);
-    setEvents(prev => prev.filter(event => event.id !== eventId));
-    setRegistrations(prev => prev.filter(reg => reg.eventId !== eventId));
-    setIsLoading(false);
+    setLoading(true);
+    
+    try {
+      const { error } = await supabase
+        .from('events')
+        .delete()
+        .eq('id', eventId);
+
+      if (error) throw error;
+
+      setEvents(prev => prev.filter(event => event.id !== eventId));
+      setRegistrations(prev => prev.filter(reg => reg.eventId !== eventId));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const registerForEvent = async (eventId: string, attendeeData?: Partial<EventGuest>): Promise<EventRegistration> => {
-    setIsLoading(true);
+    setLoading(true);
 
-    let attendeeId = user?.id || '';
-    let attendeeType: 'member' | 'guest' = 'member';
+    try {
+      let attendeeId = user?.id || '';
+      let attendeeType: 'member' | 'guest' = 'member';
 
-    // Se tem dados de convidado, criar o convidado
-    if (attendeeData && !user) {
-      const newGuest: EventGuest = {
-        id: Date.now().toString(),
-        name: attendeeData.name || '',
-        email: attendeeData.email || '',
-        phone: attendeeData.phone,
-        document: attendeeData.document,
-        createdAt: new Date(),
-      };
+      if (attendeeData && !user) {
+        const { data: guestData, error: guestError } = await supabase
+          .from('event_guests')
+          .insert({
+            name: attendeeData.name || '',
+            email: attendeeData.email || '',
+            phone: attendeeData.phone,
+            document: attendeeData.document,
+          })
+          .select()
+          .single();
+
+        if (guestError) throw guestError;
+
+        const newGuest: EventGuest = {
+          id: guestData.id,
+          name: guestData.name,
+          email: guestData.email,
+          phone: guestData.phone,
+          document: guestData.document,
+          createdAt: new Date(guestData.created_at),
+        };
+        
+        setGuests(prev => [...prev, newGuest]);
+        attendeeId = newGuest.id;
+        attendeeType = 'guest';
+      }
+
+      const qrCode = `QR-EVT${eventId}-${attendeeType.toUpperCase()}${attendeeId}-${Date.now()}`;
       
-      setGuests(prev => [...prev, newGuest]);
-      attendeeId = newGuest.id;
-      attendeeType = 'guest';
+      const { data, error } = await supabase
+        .from('event_registrations')
+        .insert({
+          event_id: eventId,
+          attendee_id: attendeeId,
+          attendee_type: attendeeType,
+          qr_code: qrCode,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      const newRegistration: EventRegistration = {
+        id: data.id,
+        eventId: data.event_id,
+        attendeeId: data.attendee_id,
+        attendeeType: data.attendee_type as 'member' | 'guest',
+        qrCode: data.qr_code,
+        registeredAt: new Date(data.registered_at),
+        checkedIn: data.checked_in,
+        checkedInAt: data.checked_in_at ? new Date(data.checked_in_at) : undefined,
+        checkedInBy: data.checked_in_by,
+      };
+
+      setRegistrations(prev => [...prev, newRegistration]);
+      return newRegistration;
+    } finally {
+      setLoading(false);
     }
-
-    const qrCode = `QR-EVT${eventId}-${attendeeType.toUpperCase()}${attendeeId}-${Date.now()}`;
-    
-    const newRegistration: EventRegistration = {
-      id: Date.now().toString(),
-      eventId,
-      attendeeId,
-      attendeeType,
-      qrCode,
-      registeredAt: new Date(),
-      checkedIn: false,
-    };
-
-    setRegistrations(prev => [...prev, newRegistration]);
-    setIsLoading(false);
-    return newRegistration;
   };
 
   const checkInAttendee = async (registrationId: string, readerEmail: string) => {
-    setIsLoading(true);
-    setRegistrations(prev => prev.map(reg => 
-      reg.id === registrationId
-        ? {
-            ...reg,
-            checkedIn: true,
-            checkedInAt: new Date(),
-            checkedInBy: readerEmail
-          }
-        : reg
-    ));
-    setIsLoading(false);
+    setLoading(true);
+    
+    try {
+      const { error } = await supabase
+        .from('event_registrations')
+        .update({
+          checked_in: true,
+          checked_in_at: new Date().toISOString(),
+          checked_in_by: readerEmail,
+        })
+        .eq('id', registrationId);
+
+      if (error) throw error;
+
+      setRegistrations(prev => prev.map(reg => 
+        reg.id === registrationId
+          ? {
+              ...reg,
+              checkedIn: true,
+              checkedInAt: new Date(),
+              checkedInBy: readerEmail
+            }
+          : reg
+      ));
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getEventRegistrations = (eventId: string): EventRegistration[] => {
@@ -215,7 +348,7 @@ export const EventProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       registerForEvent,
       checkInAttendee,
       getEventRegistrations,
-      isLoading,
+      loading,
     }}>
       {children}
     </EventContext.Provider>

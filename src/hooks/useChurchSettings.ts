@@ -45,32 +45,35 @@ export const useChurchSettings = () => {
 
       setDepartments(deptArray);
 
-      // Load collaborator counts
-      const counts: Record<string, number> = {};
-      for (const dept of deptArray) {
-        try {
-          const { data: collaborators } = await supabase
-            .from('user_roles')
-            .select('id')
-            .eq('department_id', dept.id);
-          
-          counts[dept.id] = collaborators ? collaborators.length : 0;
-        } catch (error) {
-          console.error('Error counting collaborators for dept', dept.id, error);
-          counts[dept.id] = 0;
-        }
-      }
-      setDepartmentCounts(counts);
+// Suponha que cada dept tenha ao menos um id: string
+type Department = { id: string };
 
-    } catch (error) {
-      console.error('Error loading departments:', error);
-      toast({
-        title: "Erro",
-        description: "Erro ao carregar departamentos",
-        variant: "destructive",
-      });
+// Você pode ajustar esse tipo com base na sua estrutura real
+const loadDepartmentCounts = async (deptArray: Department[]) => {
+  const counts: Record<string, number> = {};
+
+  for (const dept of deptArray) {
+    try {
+      const { data: collaborators, error } = await supabase
+        .from('user_roles')
+        .select('id')
+        .eq('department_id', dept.id);
+
+      if (error) {
+        console.error('Supabase error:', error);
+        counts[dept.id] = 0;
+      } else {
+        counts[dept.id] = collaborators?.length ?? 0;
+      }
+    } catch (err) {
+      console.error('Error counting collaborators for dept', dept.id, err);
+      counts[dept.id] = 0;
     }
-  };
+  }
+
+  setDepartmentCounts(counts);
+};
+
 
   const loadServiceTypes = async () => {
     setServiceTypes([
